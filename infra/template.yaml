@@ -208,6 +208,24 @@ Resources:
             Path: /sessions/{session_id}/submit
             Method: post
 
+  StatsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-stats
+      CodeUri: ../backend/
+      Handler: lambdas.stats.handler.handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+        - DynamoDBReadPolicy: { TableName: !Ref ResultsTable }
+        - DynamoDBReadPolicy: { TableName: !Ref SessionsTable }
+      Events:
+        Get:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BreakFixApi
+            Path: /stats
+            Method: get
+
   LeaderboardFunction:
     Type: AWS::Serverless::Function
     Properties:

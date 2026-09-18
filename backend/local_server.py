@@ -22,6 +22,7 @@ os.environ.setdefault("BREAKFIX_STORAGE", "local")
 from lambdas.challenges import handler as challenges_handler  # noqa: E402
 from lambdas.leaderboard import handler as leaderboard_handler  # noqa: E402
 from lambdas.sessions import handler as sessions_handler  # noqa: E402
+from lambdas.stats import handler as stats_handler  # noqa: E402
 from lambdas.submit import handler as submit_handler  # noqa: E402
 
 ROUTES = [
@@ -29,6 +30,7 @@ ROUTES = [
     ("POST", r"^/sessions$", sessions_handler.handler, ()),
     ("POST", r"^/sessions/([^/]+)/submit$", submit_handler.handler, ("session_id",)),
     ("GET", r"^/leaderboard$", leaderboard_handler.handler, ()),
+    ("GET", r"^/stats$", stats_handler.handler, ()),
 ]
 
 
@@ -105,7 +107,7 @@ def main():
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print(f"BreakFix API (local Lambda shim) on http://127.0.0.1:{args.port}")
-    print(f"  storage: {os.environ['BREAKFIX_STORAGE']}   routes: /challenges /sessions /leaderboard")
+    print(f"  storage: {os.environ['BREAKFIX_STORAGE']}   routes: /challenges /sessions /leaderboard /stats")
     server.serve_forever()
 
 

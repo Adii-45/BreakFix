@@ -55,5 +55,6 @@ def handler(event, context):  # noqa: ANN001
             "language": challenge.get("language", "python"),
             "difficulty": challenge.get("difficulty", "medium"),
             "time_limit_seconds": int(challenge.get("time_limit_seconds", 300)),
+            "tests_total": int(challenge.get("tests_total") or 0),
         }
     )

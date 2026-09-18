@@ -122,7 +122,10 @@ scripts/
   validate_golden_set.py  PRD 12.3 golden-set validation
   deploy.sh / deploy_frontend.sh
 infra/template.yaml  SAM template — the whole stack
-frontend/        React + Vite + CodeMirror 6
+frontend/
+  src/theme/     Obsidian Telemetry design tokens + the CodeMirror theme built from them
+  src/pages/     Landing, Challenges, Editor, Results, Leaderboard, How It Works
+  src/components/ Nav, reveals, skeletons, score ring, countdown, pipeline diagram
 tests/           unit, sandbox-isolation and DynamoDB integration tests
 ```
 
@@ -228,6 +231,41 @@ CorsAllowOrigin=https://main.<app-id>.amplifyapp.com ./scripts/deploy.sh
 
 ---
 
+## Frontend
+
+Six pages, all reading from the live API — there is no mock data in the build.
+
+| Page | Route | Real data behind it |
+|---|---|---|
+| Landing | `/` | `GET /stats` for every headline figure |
+| Active Challenges | `/challenges` | `GET /challenges` + `GET /stats` per-challenge attempts, `GET /leaderboard` in the rail |
+| Challenge Editor | `/challenges/:sessionId` | `POST /sessions` response: real `buggy_code`, `start_time`, `tests_total` |
+| Results | `/results/:sessionId` | The `POST /sessions/{id}/submit` response, verbatim |
+| Leaderboard | `/leaderboard` | `GET /leaderboard` only |
+| How It Works | `/how-it-works` | Static architecture copy + real counts from `GET /stats` |
+
+**Design system.** `src/theme/tokens.css` holds the Obsidian Telemetry palette,
+type scale, 4px spacing baseline, 10px/6px radii and the elevation matrix. The
+CodeMirror theme is built from the same tokens so the editor is part of the
+system rather than a foreign widget. Ligatures are disabled on every code
+surface — JetBrains Mono renders `<=` as a single `≤` glyph, and this is a
+product about spotting exactly that difference.
+
+**Motion.** Framer Motion (`motion/react`) handles all of it: the hero word
+reveal and highlight sweep, scroll reveals with `whileInView` + `once`, the
+`AnimatePresence` page cross-fade, spring-physics hover lifts, the score-ring
+stroke animation, the rolling countdown digits, and the pipeline's SVG
+`pathLength` line draw. GSAP was not needed. Every animation collapses to an
+instant state change under `prefers-reduced-motion`.
+
+**Honest empty states.** Where there is no data, the UI says so. `null` from the
+API renders as an em dash, the leaderboard shows an empty state instead of
+padded rows, and a challenge with no attempts reads "No attempts yet" rather
+than a fabricated count.
+
+**Client-side routing.** Deep links need an SPA rewrite;
+`scripts/deploy_frontend.sh` applies the Amplify custom rule automatically.
+
 ## Sandbox threat model
 
 Submitted code is untrusted, arbitrary code executing on our infrastructure. It
@@ -323,6 +361,8 @@ band that outcome allows without ever contradicting it.
 | §7 `POST /sessions` response | Also returns `function_name`, `repo_name`, `language`, `time_limit_seconds` | The editor screen needs them; the alternative is a second round-trip. |
 | §8.2 Evaluator scoring | Score is **clamped** to the rubric band the test outcome allows | "Do not contradict the test outcome" is a request to a model; this makes it a guarantee. |
 | §6.1 Challenges table | Added `time_limit_seconds`, `repo_url`, `license`, `source_path` | The countdown needs a duration; the rest is attribution. |
+| §7 API | Added `GET /stats` | The dashboard headline figures had no real source. Rather than hardcode them, this returns actual counts from DynamoDB and `null` where there is genuinely no data yet. |
+| §6.1 Challenges table | Added `tests_total` and `code_preview` | The UI needs the hidden-test *count* and a safe snippet. The assertions and the ground-truth diff are still never served. |
 | — | Added a labelled fallback scorer for Bedrock outages | A Bedrock blip during the demo degrades the feedback text instead of breaking submit. Correctness is unaffected. |
 
 ## Licence and attribution

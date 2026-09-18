@@ -41,6 +41,16 @@ def _read_json(path):
         return json.load(fh)
 
 
+def _preview(code, lines=4):
+    """First few non-blank lines of the buggy function, for the challenge card.
+
+    Safe to expose: the student sees the whole function the instant they start.
+    The ground-truth diff is never previewed anywhere.
+    """
+    kept = [line for line in code.splitlines() if line.strip()][:lines]
+    return "\n".join(kept)
+
+
 def discover():
     return sorted(
         os.path.join(CHALLENGE_ROOT, name)
@@ -117,6 +127,10 @@ def build_record(directory, use_agent=False, verbose=True):
         "difficulty": meta.get("difficulty", "medium"),
         "bug_category": meta.get("bug_category", ground_truth.get("bug_category", "unknown")),
         "test_cases": json.dumps(tests),
+        # Count only -- the assertions themselves stay hidden. Stored at seed
+        # time so the serving projection never has to read test_cases at all.
+        "tests_total": len(tests),
+        "code_preview": _preview(buggy_code),
         "language": meta.get("language", "python"),
         "time_limit_seconds": int(meta.get("time_limit_seconds", 300)),
     }

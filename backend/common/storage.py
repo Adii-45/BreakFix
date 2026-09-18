@@ -112,6 +112,12 @@ class LocalStore:
         rows.sort(key=lambda r: (-int(r.get("score", 0)), int(r.get("time_taken_seconds", 10**9))))
         return rows[:limit]
 
+    def count_sessions(self) -> int:
+        return len(self._read("sessions"))
+
+    def all_results(self) -> List[Dict]:
+        return list(self._read("results").values())
+
 
 class DynamoStore:
     """DynamoDB-backed store. On-demand billing only (PRD Section 11, Cost)."""
@@ -140,7 +146,8 @@ class DynamoStore:
         kwargs: Dict[str, Any] = {
             # bug_category is deliberately NOT projected -- naming the bug class would
             # hand the student half the answer before the timer starts.
-            "ProjectionExpression": "challenge_id, repo_name, function_name, difficulty, #lang, time_limit_seconds",
+            "ProjectionExpression": "challenge_id, repo_name, function_name, difficulty, #lang, "
+                                    "time_limit_seconds, tests_total, code_preview",
             "ExpressionAttributeNames": {"#lang": "language"},
         }
         while True:
@@ -191,6 +198,27 @@ class DynamoStore:
         rows = _to_jsonable(resp.get("Items", []))
         rows.sort(key=lambda r: (-int(r.get("score", 0)), int(r.get("time_taken_seconds", 10**9))))
         return rows[:limit]
+
+    def count_sessions(self) -> int:
+        # Small tables at seed-data scale; a counting scan is the cheap option.
+        total, kwargs = 0, {"Select": "COUNT"}
+        while True:
+            resp = self.sessions.scan(**kwargs)
+            total += resp.get("Count", 0)
+            if "LastEvaluatedKey" not in resp:
+                return total
+            kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+
+    def all_results(self) -> List[Dict]:
+        items, kwargs = [], {
+            "ProjectionExpression": "session_id, challenge_id, score, time_taken_seconds, correct",
+        }
+        while True:
+            resp = self.results.scan(**kwargs)
+            items.extend(_to_jsonable(resp.get("Items", [])))
+            if "LastEvaluatedKey" not in resp:
+                return items
+            kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 
 
 _store = None

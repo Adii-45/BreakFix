@@ -43,6 +43,10 @@ def seeded(store):
             ),
             "language": "python",
             "time_limit_seconds": 300,
+            # Written by the authoring pipeline alongside test_cases so the
+            # serving projection never has to read the assertions themselves.
+            "tests_total": 2,
+            "code_preview": "def add_one(n):",
         }
     )
     return store

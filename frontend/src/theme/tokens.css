@@ -1,0 +1,93 @@
+/* ===========================================================================
+   Obsidian Telemetry — design tokens
+   Values are taken verbatim from DESIGN.md. Nothing here is improvised.
+   =========================================================================== */
+:root {
+  /* --- Surface architecture ------------------------------------------- */
+  --canvas:          #0A0E14;   /* Tier 0 — master viewport substrate     */
+  --surface-1:       #12161F;   /* Tier 1 — panels, cards, code blocks    */
+  --surface-2:       #181E2A;   /* Tier 2 — modals, popovers, hover fill  */
+  --border:          #1F2733;   /* Border default                         */
+  --border-subtle:   #161C26;   /* Table rows, dividers                   */
+  --border-focus:    #4C8DFF;   /* Focus rings, active selectors          */
+  --border-float:    #283344;   /* Tier 3 container edge                  */
+
+  /* --- Chromatic accents & feedback ----------------------------------- */
+  --accent:          #4C8DFF;   /* Primary electric                       */
+  --accent-2:        #7C9CFF;   /* Secondary atmospheric                  */
+  --accent-press:    #3C7DE8;
+  --accent-hover:    #5A96FF;
+  --success:         #3DD68C;
+  --error:           #FF6B6B;
+  --warning:         #FFB84C;
+
+  /* --- Typography layers ---------------------------------------------- */
+  --text:            #E8EBF0;   /* Primary                                */
+  --text-dim:        #8891A3;   /* Secondary — metadata, line numbers     */
+  --text-muted:      #525B6C;   /* Muted — disabled, syntax commentary    */
+
+  /* --- Type families --------------------------------------------------- */
+  --font-ui:   'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* --- Radius ---------------------------------------------------------- */
+  --r-base:   10px;   /* buttons, inputs, cards, code panels              */
+  --r-nested:  6px;   /* chips inside cards, badges in rows               */
+  --r-sm:      4px;   /* checkbox                                         */
+  --r-pill:  9999px;  /* live indicators, count pills only                */
+
+  /* --- 4px baseline spacing scale -------------------------------------- */
+  --s-xs:   4px;
+  --s-sm:   8px;
+  --s-md:  12px;
+  --s-lg:  16px;
+  --s-xl:  24px;
+  --s-2xl: 32px;
+  --s-3xl: 48px;
+  --s-4xl: 72px;
+
+  /* --- Elevation matrix ------------------------------------------------ */
+  --sheen-1:  inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  --sheen-2:  inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  --sheen-btn: inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+  --elev-1:   0 2px 4px rgba(0, 0, 0, 0.4);
+  --elev-2:   0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(76, 141, 255, 0.15);
+  --elev-3:   0 16px 32px -4px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+  --glow-accent: 0 0 16px rgba(76, 141, 255, 0.2);
+  --glow-error:  0 0 16px rgba(255, 107, 107, 0.25);
+
+  /* --- Layout ---------------------------------------------------------- */
+  --gutter: 16px;
+  --margin: 24px;
+  --shell-max: 1240px;
+}
+
+/* --- Typography scale (DESIGN.md `typography`) ------------------------- */
+.t-display   { font: 600 40px/48px var(--font-ui); letter-spacing: -0.02em; }
+.t-headline  { font: 600 28px/36px var(--font-ui); letter-spacing: -0.015em; }
+.t-title     { font: 600 20px/28px var(--font-ui); letter-spacing: -0.01em; }
+.t-subtitle  { font: 600 16px/24px var(--font-ui); }
+.t-body-lg   { font: 400 15px/24px var(--font-ui); }
+.t-body      { font: 400 13px/20px var(--font-ui); }
+.t-body-sm   { font: 400 12px/18px var(--font-ui); }
+.t-code-lg   { font: 500 14px/22px var(--font-mono); }
+.t-code      { font: 400 12.5px/20px var(--font-mono); }
+.t-code-sm   { font: 400 11px/16px var(--font-mono); }
+.t-label     { font: 600 11px/14px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+.t-label-ui  { font: 500 12px/16px var(--font-ui); }
+
+@media (max-width: 767px) {
+  .t-display { font-size: 30px; line-height: 38px; letter-spacing: -0.015em; }
+}
+
+/* Tabular figures are default across every numeric display. */
+.t-code-lg, .t-code, .t-code-sm, .t-label, .num { font-variant-numeric: tabular-nums; }
+
+/* Ligatures are disabled on every code surface. JetBrains Mono renders `<=` as
+   a single `≤` glyph, and this is a product about spotting the difference
+   between `<` and `<=` — the source must read exactly as it is written. */
+.t-code-lg, .t-code, .t-code-sm, .t-label, .inline-code,
+pre.code, code.code, .preview-body, .cm-editor, .cm-content, .cm-scroller {
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0, 'calt' 0, 'dlig' 0;
+}

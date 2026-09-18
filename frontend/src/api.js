@@ -10,7 +10,7 @@ async function request(path, options = {}) {
       headers: { 'Content-Type': 'application/json' },
       ...options,
     });
-  } catch (cause) {
+  } catch {
     throw new Error(`Could not reach the BreakFix API at ${BASE}. Is the backend running?`);
   }
 
@@ -33,6 +33,7 @@ async function request(path, options = {}) {
 export const api = {
   baseUrl: BASE,
   listChallenges: () => request('/challenges'),
+  stats: () => request('/stats'),
   startSession: (challengeId, displayName) =>
     request('/sessions', {
       method: 'POST',
@@ -46,7 +47,24 @@ export const api = {
   leaderboard: () => request('/leaderboard'),
 };
 
+/* --- formatters ---------------------------------------------------------
+   `null` from the API means "no data yet", and must never be rendered as a
+   number. These return an em dash so an empty slot reads as empty, not as 0. */
+export const NO_DATA = '—';
+
 export function formatDuration(totalSeconds) {
+  if (totalSeconds === null || totalSeconds === undefined) return NO_DATA;
   const s = Math.max(0, Math.round(totalSeconds));
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+export function formatSeconds(totalSeconds) {
+  if (totalSeconds === null || totalSeconds === undefined) return NO_DATA;
+  const s = Math.max(0, Math.round(totalSeconds));
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
+}
+
+export function formatCount(value) {
+  if (value === null || value === undefined) return NO_DATA;
+  return new Intl.NumberFormat('en-US').format(value);
 }

@@ -34,6 +34,13 @@ fi
 aws amplify get-branch --app-id "$APP_ID" --branch-name "$BRANCH" --region "$AWS_REGION" >/dev/null 2>&1 \
   || aws amplify create-branch --app-id "$APP_ID" --branch-name "$BRANCH" --region "$AWS_REGION" >/dev/null
 
+step "Configuring SPA rewrites"
+# The app uses client-side routing, so every unknown path must serve index.html
+# or a deep link (e.g. /leaderboard) 404s on a hard refresh.
+aws amplify update-app --app-id "$APP_ID" --region "$AWS_REGION" \
+  --custom-rules '[{"source":"</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>","target":"/index.html","status":"200"}]' \
+  >/dev/null
+
 step "Uploading the build"
 ZIP="$(mktemp -d)/site.zip"
 (cd "$ROOT/frontend/dist" && zip -qr "$ZIP" .)

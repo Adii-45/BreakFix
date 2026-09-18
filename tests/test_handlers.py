@@ -179,3 +179,58 @@ def test_malformed_json_body_is_a_400(seeded):
     event["body"] = "{not json"
     status, _ = parse(sessions_handler.handler(event, None))
     assert status == 400
+
+
+# --- GET /stats -- real aggregates, honest nulls ---------------------------
+
+def test_stats_reports_real_catalogue_counts(seeded):
+    from lambdas.stats import handler as stats_handler
+
+    status, body = parse(stats_handler.handler(api_event(), None))
+    assert status == 200
+    assert body["challenges_available"] == 1
+    assert body["hidden_tests_total"] == 2          # the fixture has 2 hidden tests
+    assert body["repos_covered"] == 1
+
+
+def test_stats_returns_null_not_zero_when_there_is_no_activity(seeded):
+    """A fabricated 0 would read as 'fast'; null renders as an em dash."""
+    from lambdas.stats import handler as stats_handler
+
+    _, body = parse(stats_handler.handler(api_event(), None))
+    assert body["submissions_evaluated"] == 0
+    assert body["submissions_solved"] == 0
+    assert body["median_solve_seconds"] is None
+    assert body["fastest_solve_seconds"] is None
+    assert body["per_challenge"]["challenge-test"]["best_score"] is None
+
+
+def test_stats_counts_real_submissions_after_one_is_scored(seeded):
+    from lambdas.stats import handler as stats_handler
+
+    session = start_session("Adii")
+    submit(session["session_id"], FIXED)
+
+    _, body = parse(stats_handler.handler(api_event(), None))
+    assert body["sessions_started"] == 1
+    assert body["submissions_evaluated"] == 1
+    assert body["submissions_solved"] == 1
+    assert body["median_solve_seconds"] is not None
+    assert body["per_challenge"]["challenge-test"]["attempts"] == 1
+    assert body["per_challenge"]["challenge-test"]["solved"] == 1
+
+
+def test_challenge_list_exposes_test_count_but_never_the_assertions(seeded):
+    """The card shows HOW MANY hidden tests exist, never what they assert."""
+    status, body = parse(challenges_handler.handler(api_event(), None))
+    card = body["challenges"][0]
+    assert card["tests_total"] == 2
+    assert card["code_preview"] == "def add_one(n):"
+    serialised = json.dumps(body)
+    assert "expected_output" not in serialised
+    assert "ground_truth" not in serialised
+
+
+def test_session_response_carries_the_hidden_test_count(seeded):
+    body = start_session()
+    assert body["tests_total"] == 2
