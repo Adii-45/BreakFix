@@ -130,19 +130,68 @@ tests/           unit, sandbox-isolation and DynamoDB integration tests
 
 ## Running it locally
 
-```bash
-make setup      # venv + backend deps + npm install
-make seed       # verify and seed the 5 challenges into .localdb/
-make validate   # golden-set validation (PRD 12.3)
-make test       # 77 tests
-```
+**Everything runs from the repo root except the two `npm` commands, which run
+from `frontend/`.** There is no separate backend directory to `cd` into — the
+Python entry points are invoked by path from the root.
 
-Then, in two terminals:
+### One-time setup
 
 ```bash
-make serve      # API on http://127.0.0.1:8000  (real Lambda handlers, local shim)
-make web        # UI  on http://127.0.0.1:5173
+# --- backend --- (from the repo root) -------------------------------------
+cd ~/path/to/BreakFix
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt
+
+# --- frontend --- (from frontend/) ----------------------------------------
+cd frontend
+npm install
+cd ..
 ```
+
+Or in one step, from the repo root: `make setup`
+
+### Seed the challenges and check everything works
+
+All three run **from the repo root**:
+
+```bash
+BREAKFIX_STORAGE=local .venv/bin/python seed-data/author_challenges.py   # make seed
+.venv/bin/python scripts/validate_golden_set.py                          # make validate
+.venv/bin/python -m pytest tests -q                                      # make test
+```
+
+`seed` writes the 5 challenges into `.localdb/`. You must run it once before
+starting the servers, or the challenge list will be empty.
+
+### Run it — two terminals
+
+```bash
+# Terminal 1 — API, from the REPO ROOT
+.venv/bin/python backend/local_server.py --port 8000      # make serve
+
+# Terminal 2 — UI, from FRONTEND/
+cd frontend && npm run dev                                 # make web
+```
+
+Open **http://localhost:5173**. The UI defaults to the API on
+`http://127.0.0.1:8000`, so no `.env` file is needed locally — set
+`VITE_API_BASE_URL` only when pointing at a deployed API Gateway stage.
+
+### Quick reference
+
+| What | Run from | Command | Make shortcut |
+|---|---|---|---|
+| Backend deps | repo root | `.venv/bin/pip install -r requirements.txt` | `make setup` |
+| Frontend deps | `frontend/` | `npm install` | `make setup` |
+| Seed challenges | repo root | `BREAKFIX_STORAGE=local .venv/bin/python seed-data/author_challenges.py` | `make seed` |
+| Golden set | repo root | `.venv/bin/python scripts/validate_golden_set.py` | `make validate` |
+| Tests | repo root | `.venv/bin/python -m pytest tests -q` | `make test` |
+| API server | repo root | `.venv/bin/python backend/local_server.py --port 8000` | `make serve` |
+| UI dev server | `frontend/` | `npm run dev` | `make web` |
+| Production build | `frontend/` | `npm run build` | `make build` |
+
+Every `make` target is run from the repo root — the Makefile does its own `cd`.
 
 Nothing above needs AWS credentials. Storage falls back to a local JSON store
 and, without Bedrock, the Evaluator Agent degrades to a deterministic fallback
