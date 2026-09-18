@@ -1,0 +1,239 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  BreakFix - AI-judged debugging challenge platform.
+  Lambda + API Gateway + DynamoDB + Bedrock. Every resource here is on-demand or
+  pay-per-request; there is no provisioned capacity and no always-on compute
+  (PRD Section 11, Cost).
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+    Description: API Gateway stage name.
+  BedrockModelId:
+    Type: String
+    Default: anthropic.claude-opus-5
+    Description: Model id used by the Anthropic-SDK Bedrock transport.
+  BedrockFallbackModelId:
+    Type: String
+    Default: us.anthropic.claude-opus-5
+    Description: Inference-profile id used by the boto3 bedrock-runtime fallback transport.
+  CorsAllowOrigin:
+    Type: String
+    Default: "*"
+    Description: Set this to the Amplify domain once it is known.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]        # cheaper per ms than x86_64
+    MemorySize: 512
+    Timeout: 15
+    Environment:
+      Variables:
+        CHALLENGES_TABLE: !Ref ChallengesTable
+        SESSIONS_TABLE: !Ref SessionsTable
+        RESULTS_TABLE: !Ref ResultsTable
+        RESULTS_SCORE_GSI: score-index
+        CORS_ALLOW_ORIGIN: !Ref CorsAllowOrigin
+        BREAKFIX_STORAGE: dynamodb
+
+Resources:
+  # ---------------------------------------------------------------------------
+  # Data model (PRD Section 6). PAY_PER_REQUEST only.
+  # ---------------------------------------------------------------------------
+  ChallengesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: breakfix-challenges
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: challenge_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: challenge_id
+          KeyType: HASH
+
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: breakfix-sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+
+  ResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: breakfix-results
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: leaderboard_pk
+          AttributeType: S
+        - AttributeName: score
+          AttributeType: N
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        # PRD 6.4 asks for "a GSI on score, descending". DynamoDB needs a
+        # partition key to sort within, so every Results item carries a constant
+        # leaderboard_pk and the index sorts by score inside it. Querying it
+        # backwards is the top-N read.
+        - IndexName: score-index
+          KeySchema:
+            - AttributeName: leaderboard_pk
+              KeyType: HASH
+            - AttributeName: score
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # ---------------------------------------------------------------------------
+  # API
+  # ---------------------------------------------------------------------------
+  BreakFixApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Cors:
+        AllowOrigin: !Sub "'${CorsAllowOrigin}'"
+        AllowHeaders: "'Content-Type'"
+        AllowMethods: "'GET,POST,OPTIONS'"
+      MethodSettings:
+        # Basic throttling so the endpoints are not left open to arbitrary write
+        # volume (PRD Section 11, Security).
+        - ResourcePath: /*
+          HttpMethod: '*'
+          ThrottlingBurstLimit: 50
+          ThrottlingRateLimit: 25
+      TracingEnabled: false
+
+  # ---------------------------------------------------------------------------
+  # Test Runner -- untrusted code runs here, and this role grants NOTHING.
+  # No DynamoDB (so an escape cannot read hidden test cases), no Bedrock, no S3.
+  # ---------------------------------------------------------------------------
+  TestRunnerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-test-runner
+      CodeUri: ../backend/
+      Handler: lambdas.testrunner.handler.handler
+      MemorySize: 512
+      Timeout: 15
+      Environment:
+        Variables:
+          BREAKFIX_SCRATCH_ROOT: /tmp
+          SANDBOX_WALL_TIMEOUT_SECONDS: '5'
+          SANDBOX_PER_TEST_TIMEOUT_SECONDS: '2'
+          SANDBOX_MEMORY_LIMIT_MB: '256'
+      # No Policies block on purpose. SAM gives this function only the default
+      # basic execution role (CloudWatch Logs). It can read no table, invoke no
+      # model and reach no other service -- see the comment above.
+
+  # ---------------------------------------------------------------------------
+  # Application functions
+  # ---------------------------------------------------------------------------
+  ChallengesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-challenges
+      CodeUri: ../backend/
+      Handler: lambdas.challenges.handler.handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+      Events:
+        List:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BreakFixApi
+            Path: /challenges
+            Method: get
+
+  SessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-sessions
+      CodeUri: ../backend/
+      Handler: lambdas.sessions.handler.handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref SessionsTable }
+      Events:
+        Start:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BreakFixApi
+            Path: /sessions
+            Method: post
+
+  SubmitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-submit
+      CodeUri: ../backend/
+      Handler: lambdas.submit.handler.handler
+      Timeout: 29                 # API Gateway's own hard ceiling
+      MemorySize: 768
+      Environment:
+        Variables:
+          TEST_RUNNER_FUNCTION_NAME: !Ref TestRunnerFunction
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          BEDROCK_FALLBACK_MODEL_ID: !Ref BedrockFallbackModelId
+          BEDROCK_REGION: !Ref AWS::Region
+          ALLOW_EVALUATOR_FALLBACK: 'true'
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref SessionsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref ResultsTable }
+        - LambdaInvokePolicy: { FunctionName: !Ref TestRunnerFunction }
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: '*'
+      Events:
+        Submit:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BreakFixApi
+            Path: /sessions/{session_id}/submit
+            Method: post
+
+  LeaderboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-leaderboard
+      CodeUri: ../backend/
+      Handler: lambdas.leaderboard.handler.handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ResultsTable }
+        - DynamoDBReadPolicy: { TableName: !Ref SessionsTable }
+      Events:
+        Top:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BreakFixApi
+            Path: /leaderboard
+            Method: get
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the frontend's VITE_API_BASE_URL
+    Value: !Sub "https://${BreakFixApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+  ChallengesTableName:
+    Value: !Ref ChallengesTable
+  SessionsTableName:
+    Value: !Ref SessionsTable
+  ResultsTableName:
+    Value: !Ref ResultsTable
+  TestRunnerFunctionName:
+    Value: !Ref TestRunnerFunction

@@ -1,0 +1,12 @@
+{
+  "challenge_id": "challenge-02",
+  "repo_name": "python-humanize/humanize",
+  "repo_url": "https://github.com/python-humanize/humanize",
+  "license": "MIT",
+  "source_path": "src/humanize/number.py",
+  "function_name": "ordinal",
+  "language": "python",
+  "difficulty": "medium",
+  "bug_category": "wrong-condition",
+  "time_limit_seconds": 300
+}

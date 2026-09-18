@@ -1,0 +1,8 @@
+{
+  "bug_category": "incorrect-boundary",
+  "diff_summary": "The comparison inside the binary-search loop was changed from `a[mid] < x` to `a[mid] <= x`.",
+  "why_its_a_bug": "With `<=`, an element equal to x pushes `lo` past it, so the function returns the insertion point to the RIGHT of any existing equal elements. That is bisect_right's contract, not bisect_left's. The docstring still promises the leftmost position.",
+  "hint_level_description": "The loop terminates and the result is always a valid index -- look closely at what happens on the exact boundary where a[mid] equals x.",
+  "correct_line": "        if a[mid] < x:",
+  "buggy_line": "        if a[mid] <= x:"
+}

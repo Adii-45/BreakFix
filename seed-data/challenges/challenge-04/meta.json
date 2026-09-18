@@ -1,0 +1,12 @@
+{
+  "challenge_id": "challenge-04",
+  "repo_name": "django/django",
+  "repo_url": "https://github.com/django/django",
+  "license": "BSD-3-Clause",
+  "source_path": "django/utils/text.py",
+  "function_name": "slugify",
+  "language": "python",
+  "difficulty": "medium",
+  "bug_category": "wrong-operator",
+  "time_limit_seconds": 300
+}

@@ -1,0 +1,8 @@
+{
+  "bug_category": "off-by-one",
+  "diff_summary": "Inside the suffix-selection loop the unit was changed from `base ** (index + 2)` to `base ** (index + 1)`.",
+  "why_its_a_bug": "`suffixes[0]` is kB, which is base**1, so the threshold that selects it must be base**2 -- the point at which you would move up to MB. With `index + 1` the loop breaks one iteration early, so every value is reported one magnitude too large: 3000 bytes comes back as '3.0 MB' instead of '3.0 kB'.",
+  "hint_level_description": "Small values under a kilobyte are formatted correctly by the early returns. The problem is in the loop that picks which suffix to use -- work out which threshold should select the FIRST suffix.",
+  "correct_line": "        unit = base ** (index + 2)",
+  "buggy_line": "        unit = base ** (index + 1)"
+}

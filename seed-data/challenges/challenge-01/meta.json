@@ -1,0 +1,12 @@
+{
+  "challenge_id": "challenge-01",
+  "repo_name": "python/cpython",
+  "repo_url": "https://github.com/python/cpython",
+  "license": "PSF-2.0",
+  "source_path": "Lib/bisect.py",
+  "function_name": "bisect_left",
+  "language": "python",
+  "difficulty": "medium",
+  "bug_category": "incorrect-boundary",
+  "time_limit_seconds": 300
+}

@@ -1,0 +1,8 @@
+{
+  "bug_category": "wrong-condition",
+  "diff_summary": "The teens special case was narrowed from `value % 100 in (11, 12, 13)` to `value % 100 in (11, 12)` -- 13 was dropped from the tuple.",
+  "why_its_a_bug": "Without 13 in the special case, `value % 10 == 3` takes over and the function returns '13rd' instead of '13th'. The same applies to every number ending in 13 (113, 213, ...).",
+  "hint_level_description": "1st, 2nd, 22nd and 11th are all fine. The function handles the awkward teens with an explicit special case -- check whether that case covers everything it should.",
+  "correct_line": "    if value % 100 in (11, 12, 13):",
+  "buggy_line": "    if value % 100 in (11, 12):"
+}

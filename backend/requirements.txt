@@ -1,0 +1,5 @@
+# Installed into the Lambda bundle by `sam build`.
+# boto3/botocore are already present in the Lambda runtime and are omitted on
+# purpose to keep the package small. `anthropic` provides the preferred Bedrock
+# transport; if it fails to import, bedrock_client falls back to boto3.
+anthropic>=0.40.0

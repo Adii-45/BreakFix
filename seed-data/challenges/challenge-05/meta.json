@@ -1,0 +1,12 @@
+{
+  "challenge_id": "challenge-05",
+  "repo_name": "pallets/werkzeug",
+  "repo_url": "https://github.com/pallets/werkzeug",
+  "license": "BSD-3-Clause",
+  "source_path": "src/werkzeug/utils.py",
+  "function_name": "secure_filename",
+  "language": "python",
+  "difficulty": "medium",
+  "bug_category": "swapped-variable",
+  "time_limit_seconds": 300
+}

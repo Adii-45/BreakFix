@@ -1,0 +1,6 @@
+[
+  {"name": "a single byte is singular", "input": [1], "expected_output": "1 Byte"},
+  {"name": "three thousand bytes is 3.0 kB", "input": [3000], "expected_output": "3.0 kB"},
+  {"name": "three million bytes is 3.0 MB", "input": [3000000], "expected_output": "3.0 MB"},
+  {"name": "binary mode uses 1024 and KiB", "input": [3000, true], "expected_output": "2.9 KiB"}
+]

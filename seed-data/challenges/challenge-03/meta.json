@@ -1,0 +1,12 @@
+{
+  "challenge_id": "challenge-03",
+  "repo_name": "python-humanize/humanize",
+  "repo_url": "https://github.com/python-humanize/humanize",
+  "license": "MIT",
+  "source_path": "src/humanize/filesize.py",
+  "function_name": "naturalsize",
+  "language": "python",
+  "difficulty": "medium",
+  "bug_category": "off-by-one",
+  "time_limit_seconds": 360
+}

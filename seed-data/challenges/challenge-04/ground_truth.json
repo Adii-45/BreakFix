@@ -1,0 +1,8 @@
+{
+  "bug_category": "wrong-operator",
+  "diff_summary": "The `+` quantifier was dropped from the final substitution: `re.sub(r\"[-\\s]+\", \"-\", value)` became `re.sub(r\"[-\\s]\", \"-\", value)`.",
+  "why_its_a_bug": "Without the quantifier the pattern matches one separator at a time, so each space or hyphen is replaced individually instead of a whole run collapsing into a single hyphen. 'Spaces   everywhere' becomes 'spaces---everywhere'.",
+  "hint_level_description": "Single-word input and single spaces come out fine. Try an input with several spaces or hyphens in a row and compare it to what the docstring promises.",
+  "correct_line": "    return re.sub(r\"[-\\s]+\", \"-\", value).strip(\"-_\")",
+  "buggy_line": "    return re.sub(r\"[-\\s]\", \"-\", value).strip(\"-_\")"
+}

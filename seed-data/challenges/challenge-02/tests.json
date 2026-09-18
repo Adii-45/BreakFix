@@ -1,0 +1,6 @@
+[
+  {"name": "ordinal of 1 is 1st", "input": [1], "expected_output": "1st"},
+  {"name": "the teens all take th", "input": [13], "expected_output": "13th"},
+  {"name": "teens rule applies above 100", "input": [113], "expected_output": "113th"},
+  {"name": "ordinal of 22 is 22nd", "input": [22], "expected_output": "22nd"}
+]

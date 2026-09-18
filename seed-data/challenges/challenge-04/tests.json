@@ -1,0 +1,6 @@
+[
+  {"name": "punctuation is dropped and spaces become hyphens", "input": ["Hello, World!"], "expected_output": "hello-world"},
+  {"name": "runs of whitespace collapse to one hyphen", "input": ["  Spaces   everywhere  "], "expected_output": "spaces-everywhere"},
+  {"name": "mixed hyphens and spaces collapse together", "input": ["Hello -- World"], "expected_output": "hello-world"},
+  {"name": "leading and trailing hyphens are stripped", "input": ["--already-slug--"], "expected_output": "already-slug"}
+]

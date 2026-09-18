@@ -1,0 +1,8 @@
+{
+  "bug_category": "swapped-variable",
+  "diff_summary": "The join separator was swapped: `\"_\".join(filename.split())` became `\" \".join(filename.split())`.",
+  "why_its_a_bug": "The split/join is what turns runs of whitespace into underscores. Joining with a space puts the whitespace straight back, and the strip regex then deletes those spaces entirely -- so 'My cool movie.mov' becomes 'Mycoolmovie.mov' and the path-separator neutralisation (which relies on separators becoming spaces first) silently collapses too.",
+  "hint_level_description": "Filenames with no whitespace survive intact. Follow what happens to a name containing spaces, and note that path separators are deliberately turned into spaces earlier in the function.",
+  "correct_line": "    filename = \"_\".join(filename.split())",
+  "buggy_line": "    filename = \" \".join(filename.split())"
+}

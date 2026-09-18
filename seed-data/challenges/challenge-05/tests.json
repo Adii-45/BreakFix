@@ -1,0 +1,6 @@
+[
+  {"name": "path traversal is neutralised", "input": ["../../../etc/passwd"], "expected_output": "etc_passwd"},
+  {"name": "spaces become underscores", "input": ["My cool movie.mov"], "expected_output": "My_cool_movie.mov"},
+  {"name": "leading whitespace is dropped", "input": ["  i contain spaces.txt"], "expected_output": "i_contain_spaces.txt"},
+  {"name": "leading dots and underscores are stripped", "input": ["__init__.py"], "expected_output": "init__.py"}
+]
