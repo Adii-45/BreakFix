@@ -11,7 +11,9 @@ logger.setLevel(logging.INFO)
 _BASE_HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": config.CORS_ALLOW_ORIGIN,
-    "Access-Control-Allow-Headers": "Content-Type",
+    # X-Admin-Passphrase must be listed or the browser preflight blocks
+    # every admin call before it is ever sent.
+    "Access-Control-Allow-Headers": "Content-Type,X-Admin-Passphrase",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Cache-Control": "no-store",
 }

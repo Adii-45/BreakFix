@@ -4,6 +4,7 @@ import { HeroDiff, HeroHeadline } from '../components/Hero.jsx';
 import { Reveal, RevealGroup, RevealItem } from '../components/Reveal.jsx';
 import { SkeletonStat } from '../components/Skeleton.jsx';
 import { useApp } from '../store.jsx';
+import ActivityFeed from '../components/ActivityFeed.jsx';
 import { EASE, springTactile } from '../motion.js';
 import { NO_DATA, formatCount, formatSeconds } from '../api.js';
 
@@ -44,7 +45,7 @@ const PHASES = [
 ];
 
 export default function Landing() {
-  const { stats, challenges } = useApp();
+  const { stats, challenges, activity, liveConnected } = useApp();
   const loading = stats === null;
 
   /* Every figure below is a field from GET /stats. Where there is genuinely no
@@ -124,6 +125,18 @@ export default function Landing() {
             </RevealItem>
           ))}
         </RevealGroup>
+      </section>
+
+      {/* -------------------------------------------------- live activity */}
+      <section className="shell" style={{ paddingTop: 'var(--s-2xl)' }}>
+        <Reveal>
+          <ActivityFeed
+            events={activity}
+            connected={liveConnected}
+            limit={5}
+            title="Live activity · pushed over WebSocket"
+          />
+        </Reveal>
       </section>
 
       {/* ------------------------------------------------------------- phases */}

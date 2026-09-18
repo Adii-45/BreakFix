@@ -23,6 +23,13 @@ Parameters:
     Type: String
     Default: "*"
     Description: Set this to the Amplify domain once it is known.
+  AdminPassphrase:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: >
+      Shared passphrase for the live authoring screen. Leave empty to disable
+      admin authoring entirely -- every admin route then returns 503.
 
 Globals:
   Function:
@@ -33,6 +40,7 @@ Globals:
     Environment:
       Variables:
         CHALLENGES_TABLE: !Ref ChallengesTable
+        CONNECTIONS_TABLE: !Ref ConnectionsTable
         SESSIONS_TABLE: !Ref SessionsTable
         RESULTS_TABLE: !Ref ResultsTable
         RESULTS_SCORE_GSI: score-index
@@ -60,6 +68,10 @@ Resources:
     Properties:
       TableName: breakfix-sessions
       BillingMode: PAY_PER_REQUEST
+      # Presence changes when a session starts or completes, so this table is
+      # streamed to the broadcaster. Nothing polls.
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
       AttributeDefinitions:
         - AttributeName: session_id
           AttributeType: S
@@ -72,6 +84,8 @@ Resources:
     Properties:
       TableName: breakfix-results
       BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
       AttributeDefinitions:
         - AttributeName: session_id
           AttributeType: S
@@ -96,6 +110,22 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  ConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: breakfix-connections
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: connection_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connection_id
+          KeyType: HASH
+      # Connection ids are worthless once stale; let DynamoDB reap them.
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
   # ---------------------------------------------------------------------------
   # API
   # ---------------------------------------------------------------------------
@@ -105,7 +135,7 @@ Resources:
       StageName: !Ref Stage
       Cors:
         AllowOrigin: !Sub "'${CorsAllowOrigin}'"
-        AllowHeaders: "'Content-Type'"
+        AllowHeaders: "'Content-Type,X-Admin-Passphrase'"
         AllowMethods: "'GET,POST,OPTIONS'"
       MethodSettings:
         # Basic throttling so the endpoints are not left open to arbitrary write
@@ -115,6 +145,154 @@ Resources:
           ThrottlingBurstLimit: 50
           ThrottlingRateLimit: 25
       TracingEnabled: false
+
+  # ---------------------------------------------------------------------------
+  # Real-time: API Gateway WebSocket API + DynamoDB Streams broadcaster (Part 2)
+  # ---------------------------------------------------------------------------
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: breakfix-websocket
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: "$request.body.action"
+
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WebSocketApi
+      StageName: !Ref Stage
+      AutoDeploy: true
+
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $connect
+      Target: !Sub "integrations/${ConnectIntegration}"
+  ConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsConnectFunction.Arn}/invocations"
+
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $disconnect
+      Target: !Sub "integrations/${DisconnectIntegration}"
+  DisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsDisconnectFunction.Arn}/invocations"
+
+  DefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $default
+      Target: !Sub "integrations/${DefaultIntegration}"
+  DefaultIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsDefaultFunction.Arn}/invocations"
+
+  WsConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-ws-connect
+      CodeUri: ../backend/
+      Handler: lambdas.ws.handler.connect
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ConnectionsTable }
+
+  WsDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-ws-disconnect
+      CodeUri: ../backend/
+      Handler: lambdas.ws.handler.disconnect
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ConnectionsTable }
+
+  WsDefaultFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-ws-default
+      CodeUri: ../backend/
+      Handler: lambdas.ws.handler.default
+      Environment:
+        Variables:
+          WEBSOCKET_ENDPOINT: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ConnectionsTable }
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+        - DynamoDBReadPolicy: { TableName: !Ref SessionsTable }
+        - DynamoDBReadPolicy: { TableName: !Ref ResultsTable }
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*"
+
+  WsLambdaPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsConnectFunction
+      Principal: apigateway.amazonaws.com
+  WsDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsDisconnectFunction
+      Principal: apigateway.amazonaws.com
+  WsDefaultPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsDefaultFunction
+      Principal: apigateway.amazonaws.com
+
+  # Triggered by the table streams -- event-driven, never a polling loop.
+  BroadcasterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-broadcaster
+      CodeUri: ../backend/
+      Handler: lambdas.broadcaster.handler.handler
+      Timeout: 20
+      Environment:
+        Variables:
+          WEBSOCKET_ENDPOINT: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ConnectionsTable }
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+        - DynamoDBReadPolicy: { TableName: !Ref SessionsTable }
+        - DynamoDBReadPolicy: { TableName: !Ref ResultsTable }
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*"
+      Events:
+        SessionWrites:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt SessionsTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 1
+        ResultWrites:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt ResultsTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 1
 
   # ---------------------------------------------------------------------------
   # Test Runner -- untrusted code runs here, and this role grants NOTHING.
@@ -137,6 +315,160 @@ Resources:
       # No Policies block on purpose. SAM gives this function only the default
       # basic execution role (CloudWatch Logs). It can read no table, invoke no
       # model and reach no other service -- see the comment above.
+
+  # ---------------------------------------------------------------------------
+  # Live challenge authoring: Step Functions state machine (Part 3)
+  # ---------------------------------------------------------------------------
+  AuthoringFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-authoring
+      CodeUri: ../backend/
+      Handler: lambdas.authoring.handler.handler
+      Timeout: 60                 # fetch + several sandboxed test runs
+      MemorySize: 1024
+      Environment:
+        Variables:
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          BEDROCK_FALLBACK_MODEL_ID: !Ref BedrockFallbackModelId
+          BEDROCK_REGION: !Ref AWS::Region
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ChallengesTable }
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: '*'
+
+  AuthoringStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: breakfix-authoring
+      DefinitionUri: ./statemachine.asl.json
+      DefinitionSubstitutions:
+        AuthoringFunctionArn: !GetAtt AuthoringFunction.Arn
+      Policies:
+        - LambdaInvokePolicy: { FunctionName: !Ref AuthoringFunction }
+      Type: STANDARD
+
+  AdminFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-admin
+      CodeUri: ../backend/
+      Handler: lambdas.admin.handler.start_authoring
+      Timeout: 29
+      Environment:
+        Variables:
+          ADMIN_PASSPHRASE: !Ref AdminPassphrase
+          STATE_MACHINE_ARN: !Ref AuthoringStateMachine
+          EVENT_BUS_NAME: !Ref EventBus
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ChallengesTable }
+        - StepFunctionsExecutionPolicy: { StateMachineName: !GetAtt AuthoringStateMachine.Name }
+        - EventBridgePutEventsPolicy: { EventBusName: !Ref EventBus }
+      Events:
+        Start:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: /admin/authoring, Method: post }
+
+  AdminReadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-admin-read
+      CodeUri: ../backend/
+      Handler: lambdas.admin.handler.get_authoring
+      Environment:
+        Variables:
+          ADMIN_PASSPHRASE: !Ref AdminPassphrase
+          STATE_MACHINE_ARN: !Ref AuthoringStateMachine
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+        - Statement:
+            - Effect: Allow
+              Action: [states:DescribeExecution, states:GetExecutionHistory]
+              Resource: '*'
+      Events:
+        One:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: '/admin/authoring/{execution_id}', Method: get }
+
+  AdminPendingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-admin-pending
+      CodeUri: ../backend/
+      Handler: lambdas.admin.handler.list_pending
+      Environment:
+        Variables: { ADMIN_PASSPHRASE: !Ref AdminPassphrase }
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+      Events:
+        List:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: /admin/pending, Method: get }
+
+  AdminPublishFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-admin-publish
+      CodeUri: ../backend/
+      Handler: lambdas.admin.handler.publish
+      Environment:
+        Variables:
+          ADMIN_PASSPHRASE: !Ref AdminPassphrase
+          EVENT_BUS_NAME: !Ref EventBus
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ChallengesTable }
+        - EventBridgePutEventsPolicy: { EventBusName: !Ref EventBus }
+      Events:
+        Publish:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: '/admin/challenges/{challenge_id}/publish', Method: post }
+
+  # ---------------------------------------------------------------------------
+  # EventBridge (Part 4.3) -- domain events, decoupled from the write path
+  # ---------------------------------------------------------------------------
+  EventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: breakfix-events
+
+  # A published challenge or a new high score fans out to every live client.
+  AnnouncementRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref EventBus
+      Description: Push domain events to connected WebSocket clients.
+      EventPattern:
+        source: [breakfix.app]
+        detail-type: [challenge.published, highscore.set]
+      State: ENABLED
+      Targets:
+        - Id: broadcaster
+          Arn: !GetAtt BroadcasterFunction.Arn
+
+  AnnouncementPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref BroadcasterFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AnnouncementRule.Arn
+
+  MetricsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-system-status
+      CodeUri: ../backend/
+      Handler: lambdas.metrics.handler.handler
+      Policies:
+        - CloudWatchReadOnlyAccess
+      Events:
+        Get:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: /system-status, Method: get }
 
   # ---------------------------------------------------------------------------
   # Application functions
@@ -244,6 +576,14 @@ Resources:
             Method: get
 
 Outputs:
+  StateMachineArn:
+    Description: The live authoring state machine
+    Value: !Ref AuthoringStateMachine
+  EventBusName:
+    Value: !Ref EventBus
+  WebSocketUrl:
+    Description: Base URL for the frontend's VITE_WS_URL
+    Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
   ApiUrl:
     Description: Base URL for the frontend's VITE_API_BASE_URL
     Value: !Sub "https://${BreakFixApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"

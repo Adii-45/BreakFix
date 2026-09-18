@@ -8,7 +8,18 @@ time with zero solves) come back as null, not as a placeholder number.
 """
 from typing import Dict, List
 
-from common import http, storage
+from common import config, http, storage
+
+
+def _observed_difficulty(pass_rate):
+    """Map a real pass rate onto the same vocabulary as the curated label."""
+    if pass_rate is None:
+        return None
+    if pass_rate >= 0.7:
+        return "easy"
+    if pass_rate >= 0.35:
+        return "medium"
+    return "hard"
 
 
 def _percentile(values: List[int], pct: float):
@@ -36,14 +47,29 @@ def handler(event, context):  # noqa: ANN001
         cid = challenge["challenge_id"]
         attempts = [r for r in results if r.get("challenge_id") == cid]
         wins = [r for r in attempts if r.get("correct")]
+        win_times = [int(r["time_taken_seconds"]) for r in wins if r.get("time_taken_seconds") is not None]
+
+        # --- difficulty calibration (Part 4.1) ----------------------------
+        # A pass rate off one or two attempts is noise, so it is only reported
+        # once there is a real sample. Below that, `calibrated` is false and the
+        # UI keeps the curated static label.
+        sample = len(attempts)
+        calibrated = sample >= config.CALIBRATION_MIN_SAMPLE
+        pass_rate = round(len(wins) / sample, 3) if sample else None
+
         per_challenge[cid] = {
-            "attempts": len(attempts),
+            "attempts": sample,
             "solved": len(wins),
             "best_score": max((int(r.get("score", 0)) for r in attempts), default=None),
-            "best_time_seconds": min(
-                (int(r["time_taken_seconds"]) for r in wins if r.get("time_taken_seconds") is not None),
-                default=None,
-            ),
+            "best_time_seconds": min(win_times, default=None),
+            "sample_size": sample,
+            "min_sample": config.CALIBRATION_MIN_SAMPLE,
+            "calibrated": calibrated,
+            "static_difficulty": challenge.get("difficulty", "medium"),
+            # Only populated once the sample is meaningful.
+            "pass_rate": pass_rate if calibrated else None,
+            "median_solve_seconds": _percentile(win_times, 0.5) if calibrated else None,
+            "observed_difficulty": _observed_difficulty(pass_rate) if calibrated else None,
         }
 
     return http.ok(

@@ -1,0 +1,284 @@
+{
+  "Comment": "BreakFix live challenge authoring. Mirrors the offline pipeline gate for gate; the terminal state is pending_review, never published.",
+  "StartAt": "fetch",
+  "States": {
+    "fetch": {
+      "Type": "Task",
+      "Comment": "Fetch the function from GitHub",
+      "Resource": "${AuthoringFunctionArn}",
+      "Parameters": {
+        "step": "fetch",
+        "context.$": "$.context"
+      },
+      "ResultSelector": {
+        "context.$": "$.context"
+      },
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Rejected"
+        }
+      ],
+      "Next": "author_tests"
+    },
+    "author_tests": {
+      "Type": "Task",
+      "Comment": "Establish the hidden test cases",
+      "Resource": "${AuthoringFunctionArn}",
+      "Parameters": {
+        "step": "author_tests",
+        "context.$": "$.context"
+      },
+      "ResultSelector": {
+        "context.$": "$.context"
+      },
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Rejected"
+        }
+      ],
+      "Next": "verify_clean"
+    },
+    "verify_clean": {
+      "Type": "Task",
+      "Comment": "Verify the tests pass against the clean version",
+      "Resource": "${AuthoringFunctionArn}",
+      "Parameters": {
+        "step": "verify_clean",
+        "context.$": "$.context"
+      },
+      "ResultSelector": {
+        "context.$": "$.context"
+      },
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Rejected"
+        }
+      ],
+      "Next": "inject_bug"
+    },
+    "inject_bug": {
+      "Type": "Task",
+      "Comment": "Inject one bug",
+      "Resource": "${AuthoringFunctionArn}",
+      "Parameters": {
+        "step": "inject_bug",
+        "context.$": "$.context"
+      },
+      "ResultSelector": {
+        "context.$": "$.context"
+      },
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Rejected"
+        }
+      ],
+      "Next": "verify_bug"
+    },
+    "verify_bug": {
+      "Type": "Task",
+      "Comment": "Confirm the bug breaks a hidden test",
+      "Resource": "${AuthoringFunctionArn}",
+      "Parameters": {
+        "step": "verify_bug",
+        "context.$": "$.context"
+      },
+      "ResultSelector": {
+        "context.$": "$.context"
+      },
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Rejected"
+        }
+      ],
+      "Next": "validate_golden"
+    },
+    "validate_golden": {
+      "Type": "Task",
+      "Comment": "Run golden-set validation",
+      "Resource": "${AuthoringFunctionArn}",
+      "Parameters": {
+        "step": "validate_golden",
+        "context.$": "$.context"
+      },
+      "ResultSelector": {
+        "context.$": "$.context"
+      },
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Rejected"
+        }
+      ],
+      "Next": "write_brief"
+    },
+    "write_brief": {
+      "Type": "Task",
+      "Comment": "Write the mission brief",
+      "Resource": "${AuthoringFunctionArn}",
+      "Parameters": {
+        "step": "write_brief",
+        "context.$": "$.context"
+      },
+      "ResultSelector": {
+        "context.$": "$.context"
+      },
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Rejected"
+        }
+      ],
+      "Next": "land_pending"
+    },
+    "land_pending": {
+      "Type": "Task",
+      "Comment": "Land in pending_review",
+      "Resource": "${AuthoringFunctionArn}",
+      "Parameters": {
+        "step": "land_pending",
+        "context.$": "$.context"
+      },
+      "ResultSelector": {
+        "context.$": "$.context"
+      },
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "Rejected"
+        }
+      ],
+      "End": true
+    },
+    "Rejected": {
+      "Type": "Fail",
+      "Comment": "A gate rejected the candidate challenge. Nothing was published.",
+      "Error": "AuthoringGateRejected",
+      "Cause": "See the failed state's error output for the gate that rejected this run."
+    }
+  }
+}

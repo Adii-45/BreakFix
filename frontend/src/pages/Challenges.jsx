@@ -5,11 +5,12 @@ import { api, NO_DATA, formatSeconds } from '../api.js';
 import { useApp } from '../store.jsx';
 import { SkeletonChallengeCard, SkeletonRows } from '../components/Skeleton.jsx';
 import { LeaderboardEmpty, LeaderboardList } from '../components/LeaderboardRows.jsx';
+import ActivityFeed, { LiveDot, PresenceBadge } from '../components/ActivityFeed.jsx';
 import { springTactile, EASE } from '../motion.js';
 
 export default function Challenges() {
   const navigate = useNavigate();
-  const { challenges, stats, leaderboard, displayName, setDisplayName, error } = useApp();
+  const { challenges, stats, leaderboard, presence, activity, liveConnected, displayName, setDisplayName, error } = useApp();
   const [query, setQuery] = useState('');
   const [startingId, setStartingId] = useState(null);
   const [startError, setStartError] = useState('');
@@ -111,6 +112,7 @@ export default function Challenges() {
                   key={challenge.challenge_id}
                   challenge={challenge}
                   stat={stats?.per_challenge?.[challenge.challenge_id]}
+                  presenceCount={presence?.[challenge.challenge_id] || 0}
                   index={i}
                   starting={startingId === challenge.challenge_id}
                   disabled={Boolean(startingId)}
@@ -133,9 +135,7 @@ export default function Challenges() {
             <div className="card-head">
               <span className="t-label text-dim">Top scores</span>
               <span className="spacer" />
-              {leaderboard !== null && leaderboard.length > 0 && (
-                <span className="chip chip-accent">{leaderboard.length} scored</span>
-              )}
+              <LiveDot connected={liveConnected} />
             </div>
             <div className="card-body" style={{ paddingTop: leaderboard?.length ? 8 : 16 }}>
               {leaderboard === null
@@ -145,6 +145,8 @@ export default function Challenges() {
                   : <LeaderboardList entries={leaderboard.slice(0, 5)} highlightName={displayName} />}
             </div>
           </section>
+
+          <ActivityFeed events={activity} connected={liveConnected} limit={5} />
 
           <section className="card">
             <div className="card-head"><span className="t-label text-dim">How you are scored</span></div>
@@ -187,9 +189,12 @@ function ScoreRow({ title, body, foot, tone }) {
   );
 }
 
-function ChallengeCard({ challenge, stat, index, starting, disabled, onStart }) {
+function ChallengeCard({ challenge, stat, presenceCount, index, starting, disabled, onStart }) {
   const attempts = stat?.attempts ?? 0;
   const solved = stat?.solved ?? 0;
+  // Only shown once there is a real sample; below that the curated label stands.
+  const calibrated = Boolean(stat?.calibrated && stat?.pass_rate !== null);
+  const passPct = calibrated ? Math.round(stat.pass_rate * 100) : null;
 
   return (
     <motion.article
@@ -204,14 +209,24 @@ function ChallengeCard({ challenge, stat, index, starting, disabled, onStart }) 
         <div className="row gap-sm">
           <span className="t-code-sm text-dim">{challenge.repo_name}</span>
           <span className="spacer" />
-          <span className={`chip ${challenge.difficulty === 'hard' ? 'chip-error' : challenge.difficulty === 'easy' ? 'chip-success' : 'chip-warning'}`}>
-            {challenge.difficulty}
+          <PresenceBadge count={presenceCount} />
+          <span
+            className={`chip ${challenge.difficulty === 'hard' ? 'chip-error' : challenge.difficulty === 'easy' ? 'chip-success' : 'chip-warning'}`}
+            title={calibrated ? `Curated label: ${stat.static_difficulty}. Observed from ${stat.sample_size} submissions: ${stat.observed_difficulty}.` : undefined}
+          >
+            {calibrated ? stat.observed_difficulty : challenge.difficulty}
           </span>
         </div>
 
         <h2 className="t-title" style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--accent)', wordBreak: 'break-all' }}>
           {challenge.function_name}()
         </h2>
+
+        {/* What the function actually does, in plain English. Written by the
+            Mission Brief Agent and leak-checked so it cannot reveal the fix. */}
+        {challenge.student_facing_summary && (
+          <p className="t-body text-dim" style={{ margin: 0 }}>{challenge.student_facing_summary}</p>
+        )}
 
         <div className="row gap-sm wrap">
           <span className="chip">{challenge.language} </span>
@@ -220,14 +235,33 @@ function ChallengeCard({ challenge, stat, index, starting, disabled, onStart }) 
           <span className="chip">{challenge.tests_total ?? NO_DATA} hidden tests</span>
         </div>
 
-        {/* The first lines of the buggy function — never the ground-truth diff,
-            which would hand over the answer before the timer starts. */}
-        {challenge.code_preview && (
-          <div className="preview">
-            <div className="preview-head">
-              <span className="t-code-sm text-muted">buggy source · preview</span>
-            </div>
-            <pre className="code preview-body">{challenge.code_preview}</pre>
+        {/* The reported symptom — the observable effect only. */}
+        {challenge.symptom_description && (
+          <div className="symptom">
+            <span className="t-label" style={{ color: 'var(--warning)' }}>Reported symptom</span>
+            <p className="t-body-sm" style={{ margin: '4px 0 0', color: 'var(--text)' }}>
+              {challenge.symptom_description}
+            </p>
+          </div>
+        )}
+
+        {calibrated && (
+          <div className="calibration" title={`From ${stat.sample_size} real submissions`}>
+            <span className="t-code-sm" style={{ color: 'var(--text-dim)', minWidth: 74 }}>
+              {passPct}% pass rate
+            </span>
+            <span className="calibration-bar">
+              <span
+                className="calibration-fill"
+                style={{
+                  width: `${passPct}%`,
+                  background: passPct >= 70 ? 'var(--success)' : passPct >= 35 ? 'var(--warning)' : 'var(--error)',
+                }}
+              />
+            </span>
+            {stat.median_solve_seconds !== null && (
+              <span className="t-code-sm text-muted">med {stat.median_solve_seconds}s</span>
+            )}
           </div>
         )}
 
@@ -235,7 +269,9 @@ function ChallengeCard({ challenge, stat, index, starting, disabled, onStart }) 
           <span className="t-code-sm text-muted">
             {attempts === 0
               ? 'No attempts yet'
-              : `${attempts} ${attempts === 1 ? 'attempt' : 'attempts'} · ${solved} solved`}
+              : calibrated
+                ? `${attempts} attempts · ${solved} solved`
+                : `${attempts} ${attempts === 1 ? 'attempt' : 'attempts'} · ${solved} solved · needs ${stat.min_sample} for a pass rate`}
           </span>
           <span className="spacer" />
           <button type="button" className="btn btn-primary btn-sm" onClick={onStart} disabled={disabled}>

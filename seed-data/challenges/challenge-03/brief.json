@@ -1,0 +1,5 @@
+{
+  "student_facing_summary": "Formats a raw byte count as a readable file size, turning 3000 into '3.0 kB' and supporting binary and GNU-style units. humanize uses it for download sizes, disk usage figures and upload limits.",
+  "symptom_description": "Anything larger than a single kilobyte is reported against the wrong unit, so the number and its label disagree with the real size.",
+  "generated_by": "hand-authored to the Mission Brief Agent spec"
+}

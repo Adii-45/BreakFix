@@ -101,24 +101,58 @@ export default function Editor() {
         </span>
       </div>
 
-      {/* --------------------------------------------------------- objective */}
+      {/* ----------------------------------------------------- mission brief */}
       <motion.div
-        className="card objective"
+        className="brief-grid"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: EASE }}
       >
-        <div className="card-body stack gap-sm">
-          <span className="t-label text-accent">Objective</span>
-          <p className="t-body-lg" style={{ margin: 0 }}>
-            A Bug Injector Agent introduced <strong>exactly one</strong> bug into this real function from{' '}
-            <span className="inline-code">{session.repo_name}</span>. Find it and fix it before the clock runs out.
-          </p>
-          <p className="t-body text-dim" style={{ margin: 0 }}>
-            {session.tests_total > 0
-              ? `${session.tests_total} hidden unit tests will execute your submission in a sandbox. They decide pass or fail — no model gets a vote on correctness.`
-              : 'Hidden unit tests will execute your submission in a sandbox and decide pass or fail.'}
-          </p>
+        <div className="card objective">
+          <div className="card-body stack gap-md">
+            <div className="row gap-sm">
+              <span className="t-label text-accent">Mission brief</span>
+              <span className="spacer" />
+              {session.source_url && (
+                <a className="source-link" href={session.source_url} target="_blank" rel="noopener noreferrer">
+                  view the real function on GitHub ↗
+                </a>
+              )}
+            </div>
+
+            {/* What this function does in the real codebase. */}
+            {session.student_facing_summary ? (
+              <p className="t-body-lg" style={{ margin: 0 }}>{session.student_facing_summary}</p>
+            ) : (
+              <p className="t-body-lg" style={{ margin: 0 }}>
+                A real function from <span className="inline-code">{session.repo_name}</span>.
+              </p>
+            )}
+
+            <p className="t-body text-dim" style={{ margin: 0 }}>
+              A Bug Injector Agent introduced <strong>exactly one</strong> bug into it.
+              {session.tests_total > 0
+                ? ` ${session.tests_total} hidden unit tests will execute your submission in a sandbox — they decide pass or fail, and no model gets a vote on correctness.`
+                : ' Hidden unit tests will execute your submission in a sandbox and decide pass or fail.'}
+            </p>
+          </div>
+        </div>
+
+        {/* The observable symptom — deliberately never the cause. */}
+        <div className="card symptom-card">
+          <div className="card-body stack gap-sm">
+            <span className="t-label" style={{ color: 'var(--warning)' }}>Reported symptom</span>
+            {session.symptom_description ? (
+              <p className="t-body-lg" style={{ margin: 0 }}>{session.symptom_description}</p>
+            ) : (
+              <p className="t-body text-dim" style={{ margin: 0 }}>
+                No symptom report was filed for this challenge.
+              </p>
+            )}
+            <p className="t-body-sm text-muted" style={{ margin: '4px 0 0' }}>
+              This describes what users observe. Locating the cause is the exercise.
+            </p>
+          </div>
         </div>
       </motion.div>
 

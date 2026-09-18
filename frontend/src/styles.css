@@ -595,3 +595,66 @@ pre.code, code.code { font: 400 12.5px/20px var(--font-mono); margin: 0; }
 }
 
 .service-body { display: flex; gap: var(--s-xl); align-items: flex-start; flex-wrap: wrap; }
+
+/* ===========================================================================
+   Mission brief
+   =========================================================================== */
+.symptom {
+  border: 1px solid rgba(255, 184, 76, 0.22);
+  background: rgba(255, 184, 76, 0.05);
+  border-radius: var(--r-nested);
+  padding: 10px 12px;
+}
+.brief-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--s-lg); }
+@media (max-width: 900px) { .brief-grid { grid-template-columns: 1fr; } }
+.source-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 400 11px/16px var(--font-mono); color: var(--text-dim);
+  border-bottom: 1px solid transparent;
+  transition: color .16s ease, border-color .16s ease;
+}
+.source-link:hover { color: var(--accent); border-bottom-color: rgba(76, 141, 255, .5); }
+.symptom-card { border-color: rgba(255, 184, 76, 0.25); background: linear-gradient(180deg, rgba(255,184,76,.05), var(--surface-1)); }
+
+/* ===========================================================================
+   Live activity feed
+   =========================================================================== */
+.feed-row {
+  display: flex; align-items: flex-start; gap: var(--s-md);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.feed-row:last-child { border-bottom: none; }
+.feed-pip {
+  width: 7px; height: 7px; border-radius: var(--r-pill); flex: none; margin-top: 7px;
+}
+.feed-pip.is-pass { background: var(--success); box-shadow: 0 0 0 3px rgba(61,214,140,.15); }
+.feed-pip.is-fail { background: var(--text-muted); box-shadow: 0 0 0 3px rgba(136,145,163,.12); }
+
+/* ===========================================================================
+   Admin authoring
+   =========================================================================== */
+.admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-lg); align-items: start; }
+@media (max-width: 1080px) { .admin-grid { grid-template-columns: 1fr; } }
+
+textarea.input { resize: vertical; min-height: 56px; line-height: 20px; }
+select.input { appearance: none; cursor: pointer; }
+
+.step-row { display: flex; align-items: flex-start; gap: var(--s-md); padding: 7px 0; }
+.step-pip {
+  width: 18px; height: 18px; flex: none; margin-top: 1px;
+  display: grid; place-items: center;
+  border-radius: var(--r-pill); border: 1px solid var(--border);
+  font: 600 10px/1 var(--font-mono);
+}
+.pending-card { background: var(--surface-2); border-color: var(--border-float); }
+
+/* ===========================================================================
+   Calibration + system status
+   =========================================================================== */
+.calibration { display: flex; align-items: center; gap: var(--s-sm); }
+.calibration-bar { flex: 1; height: 4px; border-radius: var(--r-pill); background: var(--border); overflow: hidden; min-width: 48px; }
+.calibration-fill { height: 100%; border-radius: var(--r-pill); }
+
+.status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-md); }
+@media (max-width: 860px) { .status-grid { grid-template-columns: 1fr; } }

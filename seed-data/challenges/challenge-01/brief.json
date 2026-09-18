@@ -1,0 +1,5 @@
+{
+  "student_facing_summary": "Finds the position where a value should be inserted into an already-sorted list so the list stays sorted, returning the leftmost valid slot. It is the engine behind Python's bisect module, which powers insort and sorted-collection lookups across the standard library.",
+  "symptom_description": "When the value being searched for is already present in the list, the position it hands back sits on the wrong side of the matching entries.",
+  "generated_by": "hand-authored to the Mission Brief Agent spec"
+}

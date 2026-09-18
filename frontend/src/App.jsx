@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import Nav from './components/Nav.jsx';
 import { AppProvider, useApp } from './store.jsx';
 import { pageTransition } from './motion.js';
@@ -13,6 +13,7 @@ const Editor = lazy(() => import('./pages/Editor.jsx'));
 import Results from './pages/Results.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
 import HowItWorks from './pages/HowItWorks.jsx';
+import Admin from './pages/Admin.jsx';
 
 function Shell() {
   const location = useLocation();
@@ -34,6 +35,7 @@ function Shell() {
               <Route path="/results/:sessionId" element={<Results />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<Landing />} />
             </Routes>
             </Suspense>
@@ -48,6 +50,8 @@ function Shell() {
           <span>AWS Generative AI Hackathon project</span>
           <span className="spacer" />
           <span>Correctness is decided by real test execution, never by an LLM.</span>
+          <span>·</span>
+          <Link to="/admin" style={{ color: 'var(--text-muted)' }}>admin</Link>
         </div>
       </footer>
     </>

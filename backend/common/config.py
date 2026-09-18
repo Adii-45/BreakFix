@@ -17,6 +17,33 @@ CHALLENGES_TABLE = os.environ.get("CHALLENGES_TABLE", "breakfix-challenges")
 SESSIONS_TABLE = os.environ.get("SESSIONS_TABLE", "breakfix-sessions")
 RESULTS_TABLE = os.environ.get("RESULTS_TABLE", "breakfix-results")
 RESULTS_SCORE_GSI = os.environ.get("RESULTS_SCORE_GSI", "score-index")
+CONNECTIONS_TABLE = os.environ.get("CONNECTIONS_TABLE", "breakfix-connections")
+
+# --- Real-time (Part 2) ------------------------------------------------------
+WEBSOCKET_ENDPOINT = os.environ.get("WEBSOCKET_ENDPOINT", "")   # wss://.../stage
+# A session counts toward "people solving this now" only while it could still
+# plausibly be in progress: its own time limit plus a short grace period. Without
+# this, an abandoned tab would inflate presence forever.
+PRESENCE_GRACE_SECONDS = int(os.environ.get("PRESENCE_GRACE_SECONDS", "90"))
+ACTIVITY_FEED_LIMIT = int(os.environ.get("ACTIVITY_FEED_LIMIT", "12"))
+
+# --- Live authoring (Part 3) -------------------------------------------------
+# Fail-closed: with no passphrase configured every admin route returns 503, so an
+# unconfigured deployment exposes nothing rather than defaulting to open.
+ADMIN_PASSPHRASE = os.environ.get("ADMIN_PASSPHRASE", "")
+STATE_MACHINE_ARN = os.environ.get("STATE_MACHINE_ARN", "")
+
+# --- EventBridge (Part 4.3) --------------------------------------------------
+EVENT_BUS_NAME = os.environ.get("EVENT_BUS_NAME", "")
+
+# --- CloudWatch system status (Part 4.2) -------------------------------------
+METRICS_ENABLED = os.environ.get("METRICS_ENABLED", "true").lower() == "true"
+METRICS_WINDOW_MINUTES = int(os.environ.get("METRICS_WINDOW_MINUTES", "60"))
+
+# --- Difficulty calibration (Part 4.1) ---------------------------------------
+# Below this many scored submissions a pass rate is noise, so the UI keeps
+# showing the curated static label instead of a misleading percentage.
+CALIBRATION_MIN_SAMPLE = int(os.environ.get("CALIBRATION_MIN_SAMPLE", "5"))
 
 AWS_REGION = os.environ.get("AWS_REGION", os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
 

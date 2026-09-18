@@ -30,8 +30,34 @@ async function request(path, options = {}) {
   return payload;
 }
 
+/* Admin calls carry the shared passphrase in a header. It is held in memory and
+   sessionStorage only — never written to the bundle or to localStorage. */
+function adminHeaders(passphrase) {
+  return { 'Content-Type': 'application/json', 'X-Admin-Passphrase': passphrase || '' };
+}
+
 export const api = {
   baseUrl: BASE,
+  systemStatus: () => request('/system-status'),
+
+  admin: {
+    startAuthoring: (passphrase, payload) =>
+      request('/admin/authoring', { method: 'POST', headers: adminHeaders(passphrase), body: JSON.stringify(payload) }),
+    getExecution: (passphrase, executionId) =>
+      request(`/admin/authoring/${encodeURIComponent(executionId)}`, { headers: adminHeaders(passphrase) }),
+    listExecutions: (passphrase) =>
+      request('/admin/authoring', { headers: adminHeaders(passphrase) }),
+    listPending: (passphrase) =>
+      request('/admin/pending', { headers: adminHeaders(passphrase) }),
+    publish: (passphrase, challengeId, body) =>
+      request(`/admin/challenges/${encodeURIComponent(challengeId)}/publish`, {
+        method: 'POST', headers: adminHeaders(passphrase), body: JSON.stringify(body || {}),
+      }),
+    reject: (passphrase, challengeId) =>
+      request(`/admin/challenges/${encodeURIComponent(challengeId)}/reject`, {
+        method: 'POST', headers: adminHeaders(passphrase), body: '{}',
+      }),
+  },
   listChallenges: () => request('/challenges'),
   stats: () => request('/stats'),
   startSession: (challengeId, displayName) =>

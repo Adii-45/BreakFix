@@ -42,6 +42,33 @@ Update the Origin column to `bug-injector-agent` once that has been done and
 re-reviewed. Any bug that fails a check above is discarded and regenerated with
 a different `bug_category` in `meta.json`.
 
+## Mission briefs
+
+Each challenge also carries a student-facing brief (`brief.json`), held to the
+same review standard as the bug itself:
+
+1. **Purpose** — does it explain what the function does in the real project, to
+   someone who has never seen it?
+2. **Symptom** — does it describe the observable *effect* only? Anything that
+   names the cause, the changed line, the bug category or the direction of a
+   comparison is rejected.
+3. **Automated leak check** — `agents.brief_writer.assert_no_leak` runs in the
+   pipeline and again at publish time. It compares the brief against the
+   ground-truth lines and against the identifiers that differ between the clean
+   and buggy versions.
+
+All five seeded briefs are hand-authored to the Mission Brief Agent's spec and
+pass the leak check. `--use-agent` regenerates them through Bedrock, after which
+they need re-reviewing here.
+
+## Live-authored challenges
+
+Challenges created through the admin screen land in `pending_review` and are
+reviewed against this same checklist before anyone clicks publish. The admin
+screen shows how each part was produced (`bug: mutation-fallback`,
+`tests: admin-provided`, `brief: admin-provided`) so a reviewer knows what was
+machine-generated and what was not.
+
 ## Source attribution
 
 Each `meta.json` records the upstream repository, its licence and the file the

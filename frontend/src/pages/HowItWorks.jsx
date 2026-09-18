@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import Pipeline from '../components/Pipeline.jsx';
+import SystemStatus from '../components/SystemStatus.jsx';
 import { Reveal, RevealGroup, RevealItem } from '../components/Reveal.jsx';
 import { useApp } from '../store.jsx';
 import { springTactile } from '../motion.js';
@@ -37,6 +38,36 @@ const SERVICE_MATRIX = [
     role: 'Deploys and hosts the frontend; gives the project a live URL.',
     detail: 'Built from this repository with the build spec committed alongside it.',
     tag: 'Static hosting · CDN',
+  },
+  {
+    name: 'API Gateway WebSocket API',
+    role: 'Carries the live layer: leaderboard, presence and the activity feed.',
+    detail: 'Clients get a snapshot on connect, then receive pushes. Nothing polls.',
+    tag: '$connect · $disconnect · $default',
+  },
+  {
+    name: 'Amazon DynamoDB Streams',
+    role: 'Triggers the broadcaster whenever Sessions or Results is written.',
+    detail: 'This is what makes the live layer event-driven rather than a polling loop.',
+    tag: 'NEW_AND_OLD_IMAGES',
+  },
+  {
+    name: 'AWS Step Functions',
+    role: 'Orchestrates live challenge authoring, one state per gate.',
+    detail: 'Fetch, author tests, verify against clean, inject, verify the bug bites, golden-set, brief, land in pending_review.',
+    tag: 'STANDARD workflow',
+  },
+  {
+    name: 'Amazon EventBridge',
+    role: 'Carries domain events — a challenge published, a new high score.',
+    detail: 'Decouples announcements from the write path, so consumers are added as rules rather than code edits.',
+    tag: 'breakfix-events bus',
+  },
+  {
+    name: 'Amazon CloudWatch',
+    role: 'Source of the system-status panel above.',
+    detail: 'Invocation counts and average durations for the submit, Test Runner and broadcaster functions.',
+    tag: 'AWS/Lambda metrics',
   },
 ];
 
@@ -154,6 +185,18 @@ export default function HowItWorks() {
             ))}
           </RevealGroup>
         </div>
+      </section>
+
+      {/* -------------------------------------------------- system status */}
+      <section className="shell" style={{ marginBottom: 'var(--s-4xl)' }}>
+        <Reveal className="stack gap-sm" style={{ marginBottom: 'var(--s-lg)' }}>
+          <span className="t-label text-dim">Operational telemetry</span>
+          <h2 className="t-title" style={{ margin: 0 }}>What the stack is actually doing</h2>
+          <p className="t-body text-dim measure" style={{ margin: 0 }}>
+            Pulled from CloudWatch for the deployed functions. If it is not deployed, this panel says so.
+          </p>
+        </Reveal>
+        <Reveal delay={0.05}><SystemStatus /></Reveal>
       </section>
 
       {/* --------------------------------------------------------------- AWS */}

@@ -4,11 +4,12 @@ import { motion } from 'motion/react';
 import { useApp } from '../store.jsx';
 import { SkeletonRows } from '../components/Skeleton.jsx';
 import { LeaderboardEmpty } from '../components/LeaderboardRows.jsx';
+import { LiveDot } from '../components/ActivityFeed.jsx';
 import { formatDuration, formatSeconds, NO_DATA } from '../api.js';
 import { EASE } from '../motion.js';
 
 export default function Leaderboard() {
-  const { leaderboard, stats, challenges, displayName, refreshLeaderboard } = useApp();
+  const { leaderboard, stats, challenges, displayName, liveConnected, refreshLeaderboard } = useApp();
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
 
@@ -38,7 +39,10 @@ export default function Leaderboard() {
   return (
     <div className="shell section-sm">
       <div className="stack gap-md" style={{ marginBottom: 'var(--s-xl)' }}>
-        <span className="eyebrow">Ranked by score, then by time</span>
+        <div className="row gap-sm wrap">
+          <span className="eyebrow">Ranked by score, then by time</span>
+          <LiveDot connected={liveConnected} label={liveConnected ? 'live · pushed on every submission' : 'reconnecting'} />
+        </div>
         <div className="row gap-lg wrap" style={{ alignItems: 'flex-end' }}>
           <div className="stack gap-sm" style={{ flex: 1, minWidth: 280 }}>
             <h1 className="t-headline" style={{ margin: 0 }}>Leaderboard</h1>

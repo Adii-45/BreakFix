@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -115,6 +116,33 @@ def build_record(directory, use_agent=False, verbose=True):
     failing = buggy_result["tests_total"] - buggy_result["tests_passed"]
     log(f"  [ok] buggy.py fails {failing}/{buggy_result['tests_total']} hidden tests")
 
+    # -- Step 5: mission brief -------------------------------------------------
+    from agents import brief_writer
+
+    brief_path = os.path.join(directory, "brief.json")
+    if use_agent:
+        log("  ... invoking Mission Brief Agent")
+        brief = brief_writer.write_brief(
+            repo_name=meta["repo_name"],
+            source_path=meta.get("source_path", ""),
+            function_name=function_name,
+            clean_code=clean_code,
+            buggy_code=buggy_code,
+            ground_truth=ground_truth,
+        )
+        with open(brief_path, "w", encoding="utf-8") as fh:
+            json.dump(brief, fh, indent=2)
+    else:
+        brief = _read_json(brief_path)
+
+    # The brief is student-facing, so it is gated exactly like the bug is: it
+    # must describe the symptom without handing over the fix.
+    brief_writer.assert_no_leak(
+        {"purpose": brief["student_facing_summary"], "symptom": brief["symptom_description"]},
+        ground_truth, clean_code, buggy_code,
+    )
+    log("  [ok] mission brief passes the leak check (no fix, no changed identifiers)")
+
     return {
         "challenge_id": meta["challenge_id"],
         "repo_name": meta["repo_name"],
@@ -133,6 +161,14 @@ def build_record(directory, use_agent=False, verbose=True):
         "code_preview": _preview(buggy_code),
         "language": meta.get("language", "python"),
         "time_limit_seconds": int(meta.get("time_limit_seconds", 300)),
+        # -- mission brief (Part 1) -------------------------------------------
+        "student_facing_summary": brief["student_facing_summary"],
+        "symptom_description": brief["symptom_description"],
+        "source_url": brief_writer.source_url(meta.get("repo_url", ""), meta.get("source_path", "")),
+        # Seeded challenges are published by definition; live-authored ones land
+        # in pending_review and are only published by an explicit human click.
+        "status": "published",
+        "created_at": int(time.time()),
     }
 
 

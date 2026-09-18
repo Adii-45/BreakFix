@@ -29,6 +29,8 @@ def handler(event, context):  # noqa: ANN001
     challenge = store.get_challenge(challenge_id)
     if not challenge:
         return http.error(404, f"Unknown challenge '{challenge_id}'.")
+    if challenge.get("status", "published") != "published":
+        return http.error(403, "This challenge is still awaiting review.")
 
     session_id = str(uuid.uuid4())
     start_time = int(time.time())
@@ -56,5 +58,10 @@ def handler(event, context):  # noqa: ANN001
             "difficulty": challenge.get("difficulty", "medium"),
             "time_limit_seconds": int(challenge.get("time_limit_seconds", 300)),
             "tests_total": int(challenge.get("tests_total") or 0),
+            # Mission brief -- what the function does and what goes wrong,
+            # without revealing the fix (leak-checked at authoring time).
+            "student_facing_summary": challenge.get("student_facing_summary", ""),
+            "symptom_description": challenge.get("symptom_description", ""),
+            "source_url": challenge.get("source_url", ""),
         }
     )

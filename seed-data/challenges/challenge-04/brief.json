@@ -1,0 +1,5 @@
+{
+  "student_facing_summary": "Turns arbitrary text into a URL-safe slug, so 'Hello, World!' becomes 'hello-world'. Django calls it when building readable URLs, auto-populating slug fields and deriving safe filenames from titles.",
+  "symptom_description": "Input containing several separators in a row produces a slug with a stretch of repeated hyphens where a single one belongs.",
+  "generated_by": "hand-authored to the Mission Brief Agent spec"
+}

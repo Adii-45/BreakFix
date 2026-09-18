@@ -1,0 +1,5 @@
+{
+  "student_facing_summary": "Converts an integer into its English ordinal form — 1 becomes '1st', 22 becomes '22nd'. It is part of humanize's public API and is used wherever the library renders counts and positions as readable prose.",
+  "symptom_description": "A handful of numbers come back carrying the wrong two-letter ending.",
+  "generated_by": "hand-authored to the Mission Brief Agent spec"
+}

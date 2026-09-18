@@ -234,3 +234,49 @@ def test_challenge_list_exposes_test_count_but_never_the_assertions(seeded):
 def test_session_response_carries_the_hidden_test_count(seeded):
     body = start_session()
     assert body["tests_total"] == 2
+
+
+# --- mission brief + publication gating (Part 1 / Part 3) ------------------
+
+def test_challenge_list_serves_the_mission_brief(seeded):
+    seeded.put_challenge({**seeded.get_challenge("challenge-test"),
+                          "student_facing_summary": "Adds one to a number.",
+                          "symptom_description": "Returns a value that is too large.",
+                          "source_url": "https://github.com/example/repo/blob/main/x.py"})
+    _, body = parse(challenges_handler.handler(api_event(), None))
+    card = body["challenges"][0]
+    assert card["student_facing_summary"] == "Adds one to a number."
+    assert card["symptom_description"] == "Returns a value that is too large."
+    assert card["source_url"].startswith("https://github.com/")
+
+
+def test_pending_challenges_are_hidden_from_the_public_list(seeded):
+    seeded.put_challenge({**seeded.get_challenge("challenge-test"),
+                          "challenge_id": "challenge-pending", "status": "pending_review"})
+    _, body = parse(challenges_handler.handler(api_event(), None))
+    ids = [c["challenge_id"] for c in body["challenges"]]
+    assert "challenge-pending" not in ids
+    assert "challenge-test" in ids
+
+
+def test_pending_challenges_are_visible_with_the_explicit_flag(seeded):
+    seeded.put_challenge({**seeded.get_challenge("challenge-test"),
+                          "challenge_id": "challenge-pending", "status": "pending_review"})
+    _, body = parse(challenges_handler.handler(api_event(query={"include_pending": "1"}), None))
+    assert "challenge-pending" in [c["challenge_id"] for c in body["challenges"]]
+
+
+def test_a_session_cannot_be_started_on_an_unreviewed_challenge(seeded):
+    seeded.put_challenge({**seeded.get_challenge("challenge-test"),
+                          "challenge_id": "challenge-pending", "status": "pending_review"})
+    status, _ = parse(sessions_handler.handler(
+        api_event("POST", {"challenge_id": "challenge-pending"}), None))
+    assert status == 403
+
+
+def test_session_response_carries_the_brief(seeded):
+    seeded.put_challenge({**seeded.get_challenge("challenge-test"),
+                          "student_facing_summary": "Adds one.", "symptom_description": "Too large."})
+    body = start_session()
+    assert body["student_facing_summary"] == "Adds one."
+    assert body["symptom_description"] == "Too large."

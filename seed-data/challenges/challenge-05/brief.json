@@ -1,0 +1,5 @@
+{
+  "student_facing_summary": "Sanitises a user-supplied filename so it is safe to write to disk — folding accents to ASCII, neutralising directory traversal and normalising whitespace. Werkzeug calls it on every uploaded file before saving it.",
+  "symptom_description": "Names containing whitespace come back with those characters silently deleted, so words run together instead of staying separated.",
+  "generated_by": "hand-authored to the Mission Brief Agent spec"
+}

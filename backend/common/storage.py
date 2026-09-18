@@ -118,6 +118,30 @@ class LocalStore:
     def all_results(self) -> List[Dict]:
         return list(self._read("results").values())
 
+    def all_sessions(self) -> List[Dict]:
+        return list(self._read("sessions").values())
+
+    def recent_results(self, limit: int) -> List[Dict]:
+        rows = list(self._read("results").values())
+        rows.sort(key=lambda r: int(r.get("submitted_at", 0)), reverse=True)
+        return rows[:limit]
+
+    # -- websocket connections ---------------------------------------------
+    def put_connection(self, connection_id: str, meta: Optional[Dict] = None) -> None:
+        with self._lock:
+            data = self._read("connections")
+            data[connection_id] = {"connection_id": connection_id, **(meta or {})}
+            self._write("connections", data)
+
+    def delete_connection(self, connection_id: str) -> None:
+        with self._lock:
+            data = self._read("connections")
+            if data.pop(connection_id, None) is not None:
+                self._write("connections", data)
+
+    def list_connections(self) -> List[str]:
+        return list(self._read("connections").keys())
+
 
 class DynamoStore:
     """DynamoDB-backed store. On-demand billing only (PRD Section 11, Cost)."""
@@ -129,6 +153,7 @@ class DynamoStore:
         self.challenges = self._ddb.Table(config.CHALLENGES_TABLE)
         self.sessions = self._ddb.Table(config.SESSIONS_TABLE)
         self.results = self._ddb.Table(config.RESULTS_TABLE)
+        self.connections = self._ddb.Table(config.CONNECTIONS_TABLE)
 
     # -- challenges ---------------------------------------------------------
     def put_challenge(self, item: Dict) -> None:
@@ -147,8 +172,9 @@ class DynamoStore:
             # bug_category is deliberately NOT projected -- naming the bug class would
             # hand the student half the answer before the timer starts.
             "ProjectionExpression": "challenge_id, repo_name, function_name, difficulty, #lang, "
-                                    "time_limit_seconds, tests_total, code_preview",
-            "ExpressionAttributeNames": {"#lang": "language"},
+                                    "time_limit_seconds, tests_total, code_preview, "
+                                    "student_facing_summary, symptom_description, source_url, #st",
+            "ExpressionAttributeNames": {"#lang": "language", "#st": "status"},
         }
         while True:
             resp = self.challenges.scan(**kwargs)
@@ -218,6 +244,46 @@ class DynamoStore:
             items.extend(_to_jsonable(resp.get("Items", [])))
             if "LastEvaluatedKey" not in resp:
                 return items
+            kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+
+    def all_sessions(self) -> List[Dict]:
+        items, kwargs = [], {
+            "ProjectionExpression": "session_id, challenge_id, #s, start_time, user_display_name",
+            "ExpressionAttributeNames": {"#s": "status"},
+        }
+        while True:
+            resp = self.sessions.scan(**kwargs)
+            items.extend(_to_jsonable(resp.get("Items", [])))
+            if "LastEvaluatedKey" not in resp:
+                return items
+            kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+
+    def recent_results(self, limit: int) -> List[Dict]:
+        items, kwargs = [], {}
+        while True:
+            resp = self.results.scan(**kwargs)
+            items.extend(_to_jsonable(resp.get("Items", [])))
+            if "LastEvaluatedKey" not in resp:
+                break
+            kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+        items.sort(key=lambda r: int(r.get("submitted_at", 0)), reverse=True)
+        return items[:limit]
+
+    # -- websocket connections ---------------------------------------------
+    def put_connection(self, connection_id: str, meta: Optional[Dict] = None) -> None:
+        item = {"connection_id": connection_id, **(meta or {})}
+        self.connections.put_item(Item=_to_dynamo(item))
+
+    def delete_connection(self, connection_id: str) -> None:
+        self.connections.delete_item(Key={"connection_id": connection_id})
+
+    def list_connections(self) -> List[str]:
+        ids, kwargs = [], {"ProjectionExpression": "connection_id"}
+        while True:
+            resp = self.connections.scan(**kwargs)
+            ids.extend(i["connection_id"] for i in resp.get("Items", []))
+            if "LastEvaluatedKey" not in resp:
+                return ids
             kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 
 

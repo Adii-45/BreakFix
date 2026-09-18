@@ -11,7 +11,7 @@ slow or down, the student still gets a truthful verdict.
 import time
 
 from agents import evaluator
-from common import config, diffing, http, storage
+from common import config, diffing, events, http, storage
 from test_runner import invoker
 
 
@@ -99,8 +99,15 @@ def handler(event, context):  # noqa: ANN001
         "lines_changed": stats["lines_changed"],
         "submitted_at": int(time.time()),
     }
+    # Capture the standing best BEFORE the write so "new high score" is a real
+    # comparison rather than an assumption.
+    previous_best = _previous_best(store, session["challenge_id"])
+
     store.put_result(result)
     store.set_session_status(session_id, "complete")
+
+    # Announce, do not broadcast. The write path stays ignorant of consumers.
+    events.emit_high_score(result, previous_best)
 
     response = _shape(result)
     # Per-test detail without the expected values -- enough for the student to
@@ -111,6 +118,15 @@ def handler(event, context):  # noqa: ANN001
     if test_result.get("load_error"):
         response["execution_error"] = test_result["load_error"]
     return http.ok(response)
+
+
+def _previous_best(store, challenge_id):
+    """Highest score already recorded for this challenge, or None if it is the first."""
+    scores = [
+        int(r.get("score", 0)) for r in store.all_results()
+        if r.get("challenge_id") == challenge_id
+    ]
+    return max(scores) if scores else None
 
 
 def _shape(result):
