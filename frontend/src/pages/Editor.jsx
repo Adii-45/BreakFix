@@ -10,6 +10,7 @@ import { SkeletonLine } from '../components/Skeleton.jsx';
 import { api } from '../api.js';
 import { useApp } from '../store.jsx';
 import { EASE } from '../motion.js';
+import { load, save } from '../persist.js';
 
 const SUBMIT_HINT = /Mac|iPhone|iPad/.test(typeof navigator === 'undefined' ? '' : navigator.userAgent)
   ? '⌘↵ to submit' : 'Ctrl+Enter to submit';
@@ -23,12 +24,15 @@ export default function Editor() {
   /* The session arrives via router state from POST /sessions. A hard refresh
      loses it — the API has no GET /sessions/{id}, so we say so plainly rather
      than fabricating a session. */
-  const session = location.state?.session ?? null;
+  const session = location.state?.session ?? load('session', sessionId);
 
-  const [code, setCode] = useState(session?.buggy_code ?? '');
+  const [code, setCode] = useState(() => load('draft', sessionId) ?? session?.buggy_code ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const autoSubmitted = useRef(false);
+
+  useEffect(() => { if (session) save('session', sessionId, session); }, [session, sessionId]);
+  useEffect(() => { if (session) save('draft', sessionId, code); }, [code, session, sessionId]);
 
   const unchanged = session ? code.trim() === session.buggy_code.trim() : true;
   const empty = code.trim().length === 0;
@@ -42,9 +46,11 @@ export default function Editor() {
       const result = await api.submitFix(session.session_id, source);
       refreshCatalogue();
       refreshLeaderboard();
+      save('result', session.session_id, { result, session, submittedCode: source });
       navigate(`/results/${session.session_id}`, { state: { result, session, submittedCode: source } });
     } catch (err) {
       if (err.status === 409 && err.payload?.result) {
+        save('result', session.session_id, { result: err.payload.result, session, submittedCode: null });
         navigate(`/results/${session.session_id}`, { state: { result: err.payload.result, session } });
         return;
       }

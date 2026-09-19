@@ -6,6 +6,7 @@ import { useApp } from '../store.jsx';
 import { formatDuration } from '../api.js';
 import { EASE, springTactile } from '../motion.js';
 import { lineDiff } from '../diff.js';
+import { load } from '../persist.js';
 
 export default function Results() {
   const { sessionId } = useParams();
@@ -15,9 +16,10 @@ export default function Results() {
 
   /* The entire screen renders from the POST /sessions/{id}/submit response that
      was handed over in router state. Nothing below is synthesised. */
-  const result = location.state?.result ?? null;
-  const session = location.state?.session ?? null;
-  const submittedCode = location.state?.submittedCode ?? null;
+  const restored = location.state?.result ? null : load('result', sessionId);
+  const result = location.state?.result ?? restored?.result ?? null;
+  const session = location.state?.session ?? restored?.session ?? null;
+  const submittedCode = location.state?.submittedCode ?? restored?.submittedCode ?? null;
 
   if (!result) {
     return (
