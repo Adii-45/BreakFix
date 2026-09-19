@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { EASE } from '../motion.js';
 
-const LINE_1 = 'Find the bug. Fix it.';
-const LINE_2 = 'Get judged on how.';
+const LINE_1 = 'Find the Bug. Fix the Code.';
+const LINE_2 = 'Race the Clock.';
 
 /** Word-by-word reveal, then a highlight sweep across the accent phrase. */
 export function HeroHeadline() {
@@ -16,7 +16,7 @@ export function HeroHeadline() {
 
   if (reduced) {
     return (
-      <h1 className="t-display center" style={{ margin: 0, maxWidth: '18ch' }}>
+      <h1 className="t-display center" style={{ margin: 0, maxWidth: '30ch' }}>
         {LINE_1}<br />
         <span style={{ color: 'var(--accent)' }}>{LINE_2}</span>
       </h1>
@@ -24,7 +24,7 @@ export function HeroHeadline() {
   }
 
   return (
-    <h1 className="t-display center" style={{ margin: 0, maxWidth: '18ch' }}>
+    <h1 className="t-display center" style={{ margin: 0, maxWidth: '30ch' }}>
       <span className="sr-only">{LINE_1} {LINE_2}</span>
       <span aria-hidden="true">
         {words1.map((word, i) => (
@@ -56,7 +56,7 @@ export function HeroHeadline() {
             aria-hidden="true"
             style={{
               position: 'absolute', left: -6, right: 2, top: '8%', bottom: '10%',
-              background: 'linear-gradient(90deg, rgba(76,141,255,.22), rgba(76,141,255,.06))',
+              background: 'linear-gradient(90deg, rgba(255, 153, 0,.22), rgba(255, 153, 0,.06))',
               borderRadius: 6, transformOrigin: 'left center', zIndex: -1,
             }}
             initial={{ scaleX: 0, opacity: 0 }}
