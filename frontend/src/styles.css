@@ -658,3 +658,14 @@ select.input { appearance: none; cursor: pointer; }
 
 .status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-md); }
 @media (max-width: 860px) { .status-grid { grid-template-columns: 1fr; } }
+
+/* Challenge vault header: title block left, real platform totals right (Stitch layout). */
+.vault-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-xl); flex-wrap: wrap; }
+.vault-stats { display: flex; gap: var(--s-sm); }
+.vault-stat {
+  display: flex; flex-direction: column; gap: 4px; min-width: 96px;
+  padding: var(--s-md) var(--s-lg);
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-base);
+  box-shadow: var(--sheen-1);
+}
+.vault-stat .t-code-lg { color: var(--accent); font-size: 20px; line-height: 26px; }
