@@ -11,6 +11,9 @@ import { api } from '../api.js';
 import { useApp } from '../store.jsx';
 import { EASE } from '../motion.js';
 
+const SUBMIT_HINT = /Mac|iPhone|iPad/.test(typeof navigator === 'undefined' ? '' : navigator.userAgent)
+  ? '⌘↵ to submit' : 'Ctrl+Enter to submit';
+
 export default function Editor() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
@@ -60,10 +63,16 @@ export default function Editor() {
 
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !blocked) submit(code);
+      if (!((e.metaKey || e.ctrlKey) && e.key === 'Enter')) return;
+      // CodeMirror binds Mod-Enter to "insert blank line". Claim the key in the
+      // capture phase so the editor never sees it -- otherwise the shortcut we
+      // advertise would append a stray line to the code being submitted.
+      e.preventDefault();
+      e.stopPropagation();
+      if (!blocked) submit(code);
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [blocked, code, submit]);
 
   if (!session) {
@@ -191,7 +200,7 @@ export default function Editor() {
               {code.split('\n').length} lines
             </span>
             <span className="spacer" />
-            <span className="t-code-sm text-muted">⌘↵ to submit</span>
+            <span className="t-code-sm text-muted">{SUBMIT_HINT}</span>
           </div>
         </div>
 
