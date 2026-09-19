@@ -23,8 +23,8 @@ from common import config
 
 _CHILD_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "child_runner.py")
 
-# Lambda only guarantees /tmp is writable.
-_SCRATCH_ROOT = os.environ.get("BREAKFIX_SCRATCH_ROOT", "/tmp")
+# Lambda only guarantees /tmp is writable. On Windows, use system tempdir.
+_SCRATCH_ROOT = os.environ.get("BREAKFIX_SCRATCH_ROOT", tempfile.gettempdir() if os.name == "nt" else "/tmp")
 
 
 def _blank_results(test_cases: List[Dict], error: str, status: str) -> Dict[str, Any]:
@@ -99,7 +99,10 @@ def run_tests(
         # site directory, so the student cannot pre-load a shim. -B: no .pyc writes.
         argv = [sys.executable, "-I", "-B", _CHILD_SCRIPT, payload_path]
         env = {
-            "PATH": "/usr/bin:/bin",
+            # Locked down on POSIX (which is what Lambda runs). Windows cannot
+            # start the interpreter without the inherited PATH, and that path is
+            # local dev only -- it never applies in production.
+            "PATH": os.environ.get("PATH", "") if os.name == "nt" else "/usr/bin:/bin",
             "HOME": scratch_dir,
             "TMPDIR": scratch_dir,
             "LANG": "C.UTF-8",
@@ -114,7 +117,7 @@ def run_tests(
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            start_new_session=True,  # own process group, so we can kill descendants
+            start_new_session=True if os.name != "nt" else False,  # own process group on POSIX
         )
         try:
             stdout, stderr = proc.communicate(timeout=wall_timeout)
@@ -171,11 +174,13 @@ def run_tests(
 
 
 def _kill_group(proc: "subprocess.Popen") -> None:
-    for sig in (signal.SIGKILL,):
+    if hasattr(os, "killpg") and hasattr(os, "getpgid") and hasattr(signal, "SIGKILL"):
         try:
-            os.killpg(os.getpgid(proc.pid), sig)
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            return
         except (ProcessLookupError, PermissionError, OSError):
-            try:
-                proc.kill()
-            except Exception:  # pragma: no cover
-                pass
+            pass
+    try:
+        proc.kill()
+    except Exception:  # pragma: no cover
+        pass

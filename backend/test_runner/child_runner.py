@@ -92,6 +92,9 @@ def _install_audit_hook(scratch_dir, stdlib_roots):
             real = os.path.realpath(os.fspath(path))
         except Exception:
             return False
+        if os.name == "nt":
+            real_l = real.lower()
+            return any(real_l == r.lower() or real_l.startswith(r.lower() + os.sep) for r in roots)
         return any(real == r or real.startswith(r + os.sep) for r in roots)
 
     def hook(event, args):
@@ -224,6 +227,16 @@ def _truncate(value, limit=300):
     return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
+def _set_timer(seconds: float) -> None:
+    if hasattr(signal, "setitimer") and hasattr(signal, "ITIMER_REAL"):
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+
+
+def _cancel_timer() -> None:
+    if hasattr(signal, "setitimer") and hasattr(signal, "ITIMER_REAL"):
+        signal.setitimer(signal.ITIMER_REAL, 0)
+
+
 def main():
     payload_path = sys.argv[1]
     payload = _read_payload(payload_path)
@@ -258,11 +271,12 @@ def main():
 
     namespace = {"__name__": "__breakfix_submission__", "__builtins__": __builtins__}
     try:
-        signal.signal(signal.SIGALRM, _alarm)
-        signal.setitimer(signal.ITIMER_REAL, per_test_timeout)
+        if hasattr(signal, "SIGALRM"):
+            signal.signal(signal.SIGALRM, _alarm)
+        _set_timer(per_test_timeout)
         compiled = compile(code, "<submission>", "exec")
         exec(compiled, namespace)  # noqa: S102 -- this is the whole point of the runner
-        signal.setitimer(signal.ITIMER_REAL, 0)
+        _cancel_timer()
     except SyntaxError as exc:
         result["load_error"] = f"SyntaxError: {exc.msg} (line {exc.lineno})"
     except TestTimeout:
@@ -272,7 +286,7 @@ def main():
     except BaseException as exc:  # noqa: BLE001 - report, never crash
         result["load_error"] = f"{type(exc).__name__}: {exc}"
     finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
+        _cancel_timer()
 
     fn = namespace.get(entry_point)
     if result["load_error"] is None and not callable(fn):
@@ -298,9 +312,9 @@ def main():
         args, kwargs = _call_args(copy.deepcopy(case.get("input")))
         expected = copy.deepcopy(case.get("expected_output"))
         try:
-            signal.setitimer(signal.ITIMER_REAL, per_test_timeout)
+            _set_timer(per_test_timeout)
             actual = fn(*args, **kwargs)
-            signal.setitimer(signal.ITIMER_REAL, 0)
+            _cancel_timer()
             record["passed"] = _outputs_match(actual, expected)
             record["kind"] = "pass" if record["passed"] else "mismatch"
             if not record["passed"]:
@@ -321,8 +335,9 @@ def main():
             record["error"] = f"{type(exc).__name__}: {exc}"
             record["kind"] = "error"
         finally:
-            signal.setitimer(signal.ITIMER_REAL, 0)
+            _cancel_timer()
         result["tests"].append(record)
+
 
     os.write(result_fd, json.dumps(result).encode("utf-8"))
     os.close(result_fd)
