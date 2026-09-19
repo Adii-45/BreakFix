@@ -215,13 +215,25 @@ class DynamoStore:
     def top_results(self, limit: int) -> List[Dict]:
         from boto3.dynamodb.conditions import Key
 
-        resp = self.results.query(
-            IndexName=config.RESULTS_SCORE_GSI,
-            KeyConditionExpression=Key("leaderboard_pk").eq(LEADERBOARD_PK_VALUE),
-            ScanIndexForward=False,          # highest score first
-            Limit=max(limit * 3, limit),     # over-fetch so the tie-break below is meaningful
-        )
-        rows = _to_jsonable(resp.get("Items", []))
+        # The GSI sorts on score alone, so rows sharing a score come back in
+        # arbitrary order. Keep paging until the band straddling the cut-off is
+        # fully collected -- otherwise the fastest solver inside a large tie can
+        # sit past the page boundary and never reach the tie-break below.
+        kwargs = {
+            "IndexName": config.RESULTS_SCORE_GSI,
+            "KeyConditionExpression": Key("leaderboard_pk").eq(LEADERBOARD_PK_VALUE),
+            "ScanIndexForward": False,       # highest score first
+            "Limit": max(limit * 3, limit),
+        }
+        rows: List[Dict] = []
+        while True:
+            resp = self.results.query(**kwargs)
+            rows.extend(_to_jsonable(resp.get("Items", [])))
+            if "LastEvaluatedKey" not in resp:
+                break
+            if len(rows) >= limit and int(rows[-1].get("score", 0)) < int(rows[limit - 1].get("score", 0)):
+                break
+            kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
         rows.sort(key=lambda r: (-int(r.get("score", 0)), int(r.get("time_taken_seconds", 10**9))))
         return rows[:limit]
 

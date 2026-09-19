@@ -139,6 +139,28 @@ def test_leaderboard_gsi_query_returns_top_scores_descending(dynamo):
     assert isinstance(top[0]["score"], int)
 
 
+def test_leaderboard_tie_break_survives_a_tie_larger_than_one_page(dynamo):
+    """A tie band wider than the query page must still be ranked by time.
+
+    The GSI sorts on score alone, so without paging past the first page the
+    fastest solver in a large tie can sit outside the fetched window and be
+    ranked below slower submissions with the same score.
+    """
+    for i in range(60):
+        dynamo.put_result({"session_id": f"tie-{i:02d}", "challenge_id": "c", "score": 100,
+                           "time_taken_seconds": 500 - i, "correct": True,
+                           "user_display_name": f"T{i}"})
+    # The genuinely fastest submission, written last so it cannot be first in
+    # whatever order the index happens to return.
+    dynamo.put_result({"session_id": "fastest", "challenge_id": "c", "score": 100,
+                       "time_taken_seconds": 1, "correct": True,
+                       "user_display_name": "FASTEST"})
+
+    top = dynamo.top_results(3)
+    assert top[0]["session_id"] == "fastest"
+    assert [r["time_taken_seconds"] for r in top] == [1, 441, 442]
+
+
 def test_float_values_survive_the_round_trip(dynamo):
     dynamo.put_result({"session_id": "f1", "challenge_id": "c", "score": 80,
                        "time_taken_seconds": 12, "correct": True,
