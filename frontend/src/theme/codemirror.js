@@ -5,12 +5,12 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 
 const C = {
-  canvas: '#0A0E14',
-  surface1: '#12161F',
-  surface2: '#181E2A',
-  border: '#1F2733',
-  accent: '#4C8DFF',
-  accent2: '#7C9CFF',
+  canvas: '#090C17',
+  surface1: '#101620',
+  surface2: '#171C2A',
+  border: '#212838',
+  accent: '#FF9900',
+  accent2: '#5CD6E0',
   success: '#3DD68C',
   error: '#FF6B6B',
   warning: '#FFB84C',
@@ -31,9 +31,9 @@ export const obsidianTheme = EditorView.theme(
     '&.cm-focused': { outline: 'none' },
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: C.accent, borderLeftWidth: '2px' },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-      backgroundColor: 'rgba(76, 141, 255, 0.24)',
+      backgroundColor: 'rgba(255, 153, 0, 0.24)',
     },
-    '.cm-activeLine': { backgroundColor: 'rgba(76, 141, 255, 0.06)' },
+    '.cm-activeLine': { backgroundColor: 'rgba(255, 153, 0, 0.06)' },
     '.cm-gutters': {
       backgroundColor: C.canvas,
       color: C.muted,
@@ -42,14 +42,14 @@ export const obsidianTheme = EditorView.theme(
       fontFamily: "'JetBrains Mono', monospace",
       fontSize: '11px',
     },
-    '.cm-activeLineGutter': { backgroundColor: 'rgba(76, 141, 255, 0.08)', color: C.dim },
+    '.cm-activeLineGutter': { backgroundColor: 'rgba(255, 153, 0, 0.08)', color: C.dim },
     '.cm-lineNumbers .cm-gutterElement': { padding: '0 10px 0 14px' },
     '.cm-matchingBracket, &.cm-focused .cm-matchingBracket': {
-      backgroundColor: 'rgba(76, 141, 255, 0.18)',
+      backgroundColor: 'rgba(255, 153, 0, 0.18)',
       outline: `1px solid ${C.border}`,
       color: 'inherit',
     },
-    '.cm-selectionMatch': { backgroundColor: 'rgba(124, 156, 255, 0.14)' },
+    '.cm-selectionMatch': { backgroundColor: 'rgba(92, 214, 224, 0.14)' },
     '.cm-foldPlaceholder': { backgroundColor: C.surface2, border: `1px solid ${C.border}`, color: C.dim },
   },
   { dark: true }

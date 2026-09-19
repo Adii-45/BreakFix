@@ -157,7 +157,7 @@ export default function Landing() {
             <RevealItem key={phase.n}>
               <motion.article
                 className="card phase-card"
-                whileHover={{ y: -1, borderColor: 'rgba(76, 141, 255, 0.4)', boxShadow: 'var(--elev-2)' }}
+                whileHover={{ y: -1, borderColor: 'rgba(255, 153, 0, 0.4)', boxShadow: 'var(--elev-2)' }}
                 transition={springTactile}
               >
                 <div className="card-body stack gap-md">
@@ -236,7 +236,7 @@ export default function Landing() {
             <RevealItem key={service.name}>
               <motion.div
                 className="card aws-card"
-                whileHover={{ y: -1, borderColor: 'rgba(76, 141, 255, 0.4)', boxShadow: 'var(--elev-2)' }}
+                whileHover={{ y: -1, borderColor: 'rgba(255, 153, 0, 0.4)', boxShadow: 'var(--elev-2)' }}
                 transition={springTactile}
               >
                 <div className="card-body stack gap-sm" style={{ height: '100%' }}>

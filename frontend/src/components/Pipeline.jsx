@@ -65,7 +65,7 @@ export default function Pipeline() {
           whileInView={{ pathLength: 1 }}
           viewport={viewportOnce}
           transition={reduced ? { duration: 0 } : { duration: 1.6, ease: EASE, delay: 0.2 }}
-          style={{ filter: 'drop-shadow(0 0 6px rgba(76,141,255,.5))' }}
+          style={{ filter: 'drop-shadow(0 0 6px rgba(255, 153, 0,.5))' }}
         />
       </svg>
 

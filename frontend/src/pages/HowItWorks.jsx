@@ -214,7 +214,7 @@ export default function HowItWorks() {
             <RevealItem key={service.name}>
               <motion.div
                 className="card service-row"
-                whileHover={{ borderColor: 'rgba(76, 141, 255, 0.4)', boxShadow: 'var(--elev-2)' }}
+                whileHover={{ borderColor: 'rgba(255, 153, 0, 0.4)', boxShadow: 'var(--elev-2)' }}
                 transition={springTactile}
                 style={{ marginTop: i === 0 ? 0 : 'var(--s-sm)' }}
               >
