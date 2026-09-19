@@ -5,6 +5,7 @@ import { LeaderboardEmpty, LeaderboardList } from '../components/LeaderboardRows
 import { useApp } from '../store.jsx';
 import { formatDuration } from '../api.js';
 import { EASE, springTactile } from '../motion.js';
+import { lineDiff } from '../diff.js';
 
 export default function Results() {
   const { sessionId } = useParams();
@@ -16,6 +17,7 @@ export default function Results() {
      was handed over in router state. Nothing below is synthesised. */
   const result = location.state?.result ?? null;
   const session = location.state?.session ?? null;
+  const submittedCode = location.state?.submittedCode ?? null;
 
   if (!result) {
     return (
@@ -37,6 +39,15 @@ export default function Results() {
   const passed = Boolean(result.correct);
   const fallback = result.feedback_source === 'fallback-heuristic';
   const label = session ? `${session.repo_name} · ${session.function_name}()` : sessionId;
+
+  /* Presentation only: the response is already in hand. Staging it makes the order
+     of authority visible -- verdict first, tests ticking in, the model's opinion last. */
+  const tests = result.test_summary || [];
+  const at = (seconds) => (reduced ? 0 : seconds);
+  const testsStart = 0.45;
+  const testStep = 0.14;
+  const evaluatorAt = testsStart + tests.length * testStep + 0.35;
+  const change = session && submittedCode != null ? lineDiff(session.buggy_code, submittedCode) : undefined;
 
   return (
     <div className="shell section-sm">
@@ -95,6 +106,47 @@ export default function Results() {
         </div>
       )}
 
+      {/* ------------------------------------------------------- your change */}
+      {change !== undefined && (
+        <motion.section
+          className="code-panel"
+          style={{ marginTop: 'var(--s-lg)' }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: EASE, delay: at(0.2) }}
+        >
+          <div className="card-head">
+            <span className="t-label text-dim">Your change</span>
+            <span className="spacer" />
+            <span className="chip">
+              {change === null
+                ? 'diff unavailable'
+                : `+${change.filter((l) => l.t === 'add').length} −${change.filter((l) => l.t === 'del').length}`}
+            </span>
+          </div>
+          <div className="code-scroll">
+            {change === null || change.length === 0 ? (
+              <div className="code-line"><span className="t-code text-muted">
+                {change === null ? 'Too large to diff.' : 'No lines were changed from the buggy version.'}
+              </span></div>
+            ) : change.map((line, idx) => (
+              <div
+                key={idx}
+                className={`code-line ${line.t === 'add' ? 'code-line-add' : line.t === 'del' ? 'code-line-del' : ''}`}
+              >
+                <span className="ln">{line.ln}</span>
+                <span
+                  className="t-code"
+                  style={{ color: line.t === 'add' ? 'var(--success)' : line.t === 'del' ? 'var(--error)' : 'var(--text-dim)' }}
+                >
+                  {line.t === 'add' ? '+ ' : line.t === 'del' ? '- ' : '  '}{line.text}
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
       {/* ---------------------------------------------------------- detail */}
       <div className="results-grid" style={{ marginTop: 'var(--s-lg)' }}>
         {/* Correctness — straight from the Test Runner */}
@@ -102,7 +154,7 @@ export default function Results() {
           className="card"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: EASE, delay: 0.1 }}
+          transition={{ duration: 0.35, ease: EASE, delay: at(0.3) }}
         >
           <div className="card-head">
             <span className="t-label text-dim">Correctness · test execution</span>
@@ -112,13 +164,13 @@ export default function Results() {
             </span>
           </div>
           <div className="card-body stack gap-sm">
-            {(result.test_summary || []).map((test, index) => (
+            {tests.map((test, index) => (
               <motion.div
                 key={index}
                 className="test-row"
                 initial={reduced ? false : { opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + index * 0.06, duration: 0.28, ease: EASE }}
+                transition={{ delay: at(testsStart + index * testStep), duration: 0.28, ease: EASE }}
               >
                 <span className={`test-dot ${test.passed ? 'is-pass' : 'is-fail'}`} aria-hidden="true" />
                 <span className="t-body" style={{ color: test.passed ? 'var(--text)' : 'var(--text-dim)' }}>
@@ -145,7 +197,7 @@ export default function Results() {
           className="card"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: EASE, delay: 0.16 }}
+          transition={{ duration: 0.45, ease: EASE, delay: at(evaluatorAt) }}
         >
           <div className="card-head">
             <span className="t-label text-dim">How you debugged · Evaluator Agent</span>
@@ -190,7 +242,7 @@ export default function Results() {
           className="card"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: EASE, delay: 0.22 }}
+          transition={{ duration: 0.35, ease: EASE, delay: at(evaluatorAt + 0.15) }}
         >
           <div className="card-head"><span className="t-label text-dim">Leaderboard</span></div>
           <div className="card-body">
@@ -204,7 +256,7 @@ export default function Results() {
           className="card next-card"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: EASE, delay: 0.26 }}
+          transition={{ duration: 0.35, ease: EASE, delay: at(evaluatorAt + 0.25) }}
         >
           <div className="card-body stack gap-md" style={{ height: '100%' }}>
             <span className="t-label text-accent">What next</span>

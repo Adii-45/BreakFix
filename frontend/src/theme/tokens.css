@@ -1,22 +1,22 @@
 /* ===========================================================================
-   Obsidian Telemetry — design tokens
+   Cyber-Telemetry — design tokens (Stitch: AWS-orange on navy-black)
    Values are taken verbatim from DESIGN.md. Nothing here is improvised.
    =========================================================================== */
 :root {
   /* --- Surface architecture ------------------------------------------- */
-  --canvas:          #0A0E14;   /* Tier 0 — master viewport substrate     */
-  --surface-1:       #12161F;   /* Tier 1 — panels, cards, code blocks    */
-  --surface-2:       #181E2A;   /* Tier 2 — modals, popovers, hover fill  */
-  --border:          #1F2733;   /* Border default                         */
-  --border-subtle:   #161C26;   /* Table rows, dividers                   */
-  --border-focus:    #4C8DFF;   /* Focus rings, active selectors          */
-  --border-float:    #283344;   /* Tier 3 container edge                  */
+  --canvas:          #090C17;   /* Tier 0 — master viewport substrate     */
+  --surface-1:       #101620;   /* Tier 1 — panels, cards, code blocks    */
+  --surface-2:       #171C2A;   /* Tier 2 — modals, popovers, hover fill  */
+  --border:          #212838;   /* Border default                         */
+  --border-subtle:   #171C28;   /* Table rows, dividers                   */
+  --border-focus:    #FF9900;   /* Focus rings, active selectors          */
+  --border-float:    #2C3448;   /* Tier 3 container edge                  */
 
   /* --- Chromatic accents & feedback ----------------------------------- */
-  --accent:          #4C8DFF;   /* Primary electric                       */
-  --accent-2:        #7C9CFF;   /* Secondary atmospheric                  */
-  --accent-press:    #3C7DE8;
-  --accent-hover:    #5A96FF;
+  --accent:          #FF9900;   /* Primary electric                       */
+  --accent-2:        #5CD6E0;   /* Secondary atmospheric                  */
+  --accent-press:    #E08600;
+  --accent-hover:    #FFAA26;
   --success:         #3DD68C;
   --error:           #FF6B6B;
   --warning:         #FFB84C;
@@ -51,9 +51,9 @@
   --sheen-2:  inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
   --sheen-btn: inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
   --elev-1:   0 2px 4px rgba(0, 0, 0, 0.4);
-  --elev-2:   0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(76, 141, 255, 0.15);
+  --elev-2:   0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 153, 0, 0.15);
   --elev-3:   0 16px 32px -4px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.05);
-  --glow-accent: 0 0 16px rgba(76, 141, 255, 0.2);
+  --glow-accent: 0 0 16px rgba(255, 153, 0, 0.2);
   --glow-error:  0 0 16px rgba(255, 107, 107, 0.25);
 
   /* --- Layout ---------------------------------------------------------- */

@@ -39,20 +39,44 @@ export default function Challenges() {
 
   return (
     <div className="shell section-sm">
-      <div className="stack gap-md" style={{ marginBottom: 'var(--s-xl)' }}>
-        <div className="row gap-sm wrap">
-          <span className="eyebrow"><span className="dot dot-live" style={{ color: 'var(--success)' }} /> Seeded challenge set</span>
-          {stats && (
-            <span className="chip">
-              {stats.hidden_tests_total} hidden tests · {stats.repos_covered} repos
-            </span>
-          )}
+      <div className="vault-head" style={{ marginBottom: 'var(--s-xl)' }}>
+        <div className="stack gap-md">
+          <div className="row gap-sm wrap">
+            <span className="eyebrow"><span className="dot dot-live" style={{ color: 'var(--success)' }} /> Seeded challenge set</span>
+            {stats && (
+              <span className="chip">
+                {stats.hidden_tests_total} hidden tests · {stats.repos_covered} repos
+              </span>
+            )}
+          </div>
+          <h1 className="t-headline" style={{ margin: 0 }}>Debugging challenge vault</h1>
+          <p className="t-body-lg text-dim measure" style={{ margin: 0 }}>
+            Each one is a real function with a single injected bug. Your fix is validated by hidden unit
+            tests that actually execute it inside a sandbox — then reviewed for how you got there.
+          </p>
         </div>
-        <h1 className="t-headline" style={{ margin: 0 }}>Active challenges</h1>
-        <p className="t-body-lg text-dim measure" style={{ margin: 0 }}>
-          Each one is a real function with a single injected bug. Your fix is validated by hidden unit
-          tests that actually execute it inside a sandbox — then reviewed for how you got there.
-        </p>
+        {stats && (
+          <div className="vault-stats" aria-label="Platform totals">
+            <div className="vault-stat">
+              <span className="t-code-lg num">{stats.hidden_tests_total}</span>
+              <span className="t-label text-muted">Hidden tests</span>
+            </div>
+            <div className="vault-stat">
+              <span className="t-code-lg num">
+                {stats.median_solve_seconds == null ? NO_DATA : formatSeconds(stats.median_solve_seconds)}
+              </span>
+              <span className="t-label text-muted">Median solve</span>
+            </div>
+            <div className="vault-stat">
+              <span className="t-code-lg num">
+                {stats.submissions_evaluated
+                  ? `${((stats.submissions_solved / stats.submissions_evaluated) * 100).toFixed(1)}%`
+                  : NO_DATA}
+              </span>
+              <span className="t-label text-muted">Pass rate</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {(error || startError) && (
@@ -202,7 +226,7 @@ function ChallengeCard({ challenge, stat, presenceCount, index, starting, disabl
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.06, 0.3), duration: 0.35, ease: EASE }}
-      whileHover={disabled ? undefined : { y: -1, borderColor: 'rgba(76, 141, 255, 0.4)', boxShadow: 'var(--elev-2)' }}
+      whileHover={disabled ? undefined : { y: -1, borderColor: 'rgba(255, 153, 0, 0.4)', boxShadow: 'var(--elev-2)' }}
       {...{ transition: springTactile }}
     >
       <div className="card-body stack gap-md" style={{ height: '100%' }}>

@@ -50,6 +50,9 @@ export default function Nav({ challengeCount, displayName }) {
             </span>
           )}
           {displayName && <span className="chip">@{displayName}</span>}
+          {!pathname.startsWith('/challenges') && !pathname.startsWith('/results') && (
+            <Link to="/challenges" className="btn btn-primary btn-sm">Start Debugging</Link>
+          )}
         </div>
       </div>
     </header>
