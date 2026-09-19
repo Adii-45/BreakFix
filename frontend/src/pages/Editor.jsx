@@ -42,7 +42,7 @@ export default function Editor() {
       const result = await api.submitFix(session.session_id, source);
       refreshCatalogue();
       refreshLeaderboard();
-      navigate(`/results/${session.session_id}`, { state: { result, session } });
+      navigate(`/results/${session.session_id}`, { state: { result, session, submittedCode: source } });
     } catch (err) {
       if (err.status === 409 && err.payload?.result) {
         navigate(`/results/${session.session_id}`, { state: { result: err.payload.result, session } });
