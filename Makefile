@@ -1,4 +1,4 @@
-.PHONY: help setup seed validate test serve web build deploy clean
+.PHONY: help setup seed validate test serve web build verify deploy clean
 
 help:
 	@echo "BreakFix"
@@ -9,6 +9,7 @@ help:
 	@echo "  make serve     - run the local Lambda/API Gateway shim on :8000"
 	@echo "  make web       - run the frontend dev server on :5173"
 	@echo "  make build     - production build of the frontend"
+	@echo "  make verify    - prove the AWS-dependent parts really work (needs credentials)"
 	@echo "  make deploy    - deploy the backend to AWS (needs aws + sam CLIs)"
 
 setup:
@@ -34,6 +35,9 @@ web:
 
 build:
 	cd frontend && npm run build
+
+verify:
+	.venv/bin/python scripts/verify_aws.py
 
 deploy:
 	./scripts/deploy.sh

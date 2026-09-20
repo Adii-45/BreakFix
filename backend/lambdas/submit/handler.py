@@ -98,6 +98,13 @@ def handler(event, context):  # noqa: ANN001
         "runner_status": test_result.get("runner_status"),
         "lines_changed": stats["lines_changed"],
         "submitted_at": int(time.time()),
+        # Stored so GET /sessions/{id}/result can rebuild the exact same screen
+        # after a refresh. Names only -- never the expected values.
+        "test_summary": [
+            {"name": t.get("name"), "passed": bool(t.get("passed"))}
+            for t in test_result.get("per_test", [])
+        ],
+        "execution_error": test_result.get("load_error") or "",
     }
     # Capture the standing best BEFORE the write so "new high score" is a real
     # comparison rather than an assumption.
@@ -112,9 +119,7 @@ def handler(event, context):  # noqa: ANN001
     response = _shape(result)
     # Per-test detail without the expected values -- enough for the student to
     # see which cases broke, not enough to reverse-engineer the hidden suite.
-    response["test_summary"] = [
-        {"name": t.get("name"), "passed": bool(t.get("passed"))} for t in test_result.get("per_test", [])
-    ]
+    response["test_summary"] = result["test_summary"]
     if test_result.get("load_error"):
         response["execution_error"] = test_result["load_error"]
     return http.ok(response)

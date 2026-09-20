@@ -22,6 +22,7 @@ os.environ.setdefault("BREAKFIX_STORAGE", "local")
 from lambdas.challenges import handler as challenges_handler  # noqa: E402
 from lambdas.leaderboard import handler as leaderboard_handler  # noqa: E402
 from lambdas.sessions import handler as sessions_handler  # noqa: E402
+from lambdas.session_read import handler as session_read_handler  # noqa: E402
 from lambdas.stats import handler as stats_handler  # noqa: E402
 from lambdas.broadcaster import handler as broadcaster_handler  # noqa: E402
 from lambdas.admin import handler as admin_handler  # noqa: E402
@@ -55,6 +56,9 @@ ROUTES = [
     ("GET", r"^/challenges$", challenges_handler.handler, ()),
     ("POST", r"^/sessions$", sessions_handler.handler, ()),
     ("POST", r"^/sessions/([^/]+)/submit$", submit_handler.handler, ("session_id",)),
+    # Addressable session + result, so a refresh or a pasted URL recovers.
+    ("GET", r"^/sessions/([^/]+)$", session_read_handler.get_session, ("session_id",)),
+    ("GET", r"^/sessions/([^/]+)/result$", session_read_handler.get_result, ("session_id",)),
     ("GET", r"^/leaderboard$", leaderboard_handler.handler, ()),
     ("GET", r"^/stats$", stats_handler.handler, ()),
     ("GET", r"^/system-status$", metrics_handler.handler, ()),

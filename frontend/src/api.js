@@ -60,6 +60,8 @@ export const api = {
   },
   listChallenges: () => request('/challenges'),
   stats: () => request('/stats'),
+  getSession: (sessionId) => request(`/sessions/${encodeURIComponent(sessionId)}`),
+  getResult: (sessionId) => request(`/sessions/${encodeURIComponent(sessionId)}/result`),
   startSession: (challengeId, displayName) =>
     request('/sessions', {
       method: 'POST',

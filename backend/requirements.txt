@@ -3,3 +3,8 @@
 # purpose to keep the package small. `anthropic` provides the preferred Bedrock
 # transport; if it fails to import, bedrock_client falls back to boto3.
 anthropic>=0.40.0
+
+# The Lambda image has no system CA bundle the way a laptop does, and the live
+# authoring fetcher talks to raw.githubusercontent.com over TLS. Pinned rather
+# than relied on transitively via anthropic -> httpx.
+certifi>=2024.2.2

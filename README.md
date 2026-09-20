@@ -208,6 +208,23 @@ identical either way, because it comes from executing the tests.
 
 ---
 
+## Deployment status — read this first
+
+**Nothing is deployed yet, and no part of this project has made a real AWS call.**
+Every service below is written, IaC'd and validated, but has only ever run
+against a local stand-in:
+
+| Verified against | What |
+|---|---|
+| Real AWS | *nothing yet* |
+| Local stand-in | Lambda handlers (in-process), REST API (`local_server.py`), WebSocket (`local_ws.py`), DynamoDB Streams (synthetic record), Step Functions (threaded orchestrator), EventBridge (in-process list) |
+| `moto` simulation | DynamoDB tables + the leaderboard GSI |
+| Honestly reports unavailable | CloudWatch system status |
+| **Never exercised** | **Amazon Bedrock — all four agents.** Both live agents currently run on labelled fallbacks |
+
+`scripts/verify_aws.py` exists to turn that table green one row at a time, and
+`make verify` runs it. See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the runbook.
+
 ## Deploying to AWS
 
 **Prerequisites**

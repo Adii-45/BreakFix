@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import Nav from './components/Nav.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { AppProvider, useApp } from './store.jsx';
 import { pageTransition } from './motion.js';
 
@@ -27,6 +28,7 @@ function Shell() {
       <main className="app-main">
         <AnimatePresence mode="wait">
           <motion.div key={location.pathname} {...pageTransition}>
+            <ErrorBoundary key={location.pathname}>
             <Suspense fallback={<EditorFallback />}>
             <Routes location={location}>
               <Route path="/" element={<Landing />} />
@@ -39,6 +41,7 @@ function Shell() {
               <Route path="*" element={<Landing />} />
             </Routes>
             </Suspense>
+            </ErrorBoundary>
           </motion.div>
         </AnimatePresence>
       </main>

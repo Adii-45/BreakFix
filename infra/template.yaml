@@ -332,8 +332,12 @@ Resources:
           BEDROCK_MODEL_ID: !Ref BedrockModelId
           BEDROCK_FALLBACK_MODEL_ID: !Ref BedrockFallbackModelId
           BEDROCK_REGION: !Ref AWS::Region
+          # Fetched GitHub code executes in the zero-permission Test Runner, not
+          # here -- this function holds DynamoDB write and Bedrock access.
+          TEST_RUNNER_FUNCTION_NAME: !Ref TestRunnerFunction
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref ChallengesTable }
+        - LambdaInvokePolicy: { FunctionName: !Ref TestRunnerFunction }
         - Statement:
             - Effect: Allow
               Action:
@@ -557,6 +561,72 @@ Resources:
             RestApiId: !Ref BreakFixApi
             Path: /stats
             Method: get
+
+  # Addressable session + result. Without these a refresh on the editor or the
+  # results screen loses the attempt entirely (see README, "Recovering a session").
+  SessionReadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-session-read
+      CodeUri: ../backend/
+      Handler: lambdas.session_read.handler.get_session
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref SessionsTable }
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+      Events:
+        Get:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: '/sessions/{session_id}', Method: get }
+
+  ResultReadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-result-read
+      CodeUri: ../backend/
+      Handler: lambdas.session_read.handler.get_result
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ResultsTable }
+      Events:
+        Get:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: '/sessions/{session_id}/result', Method: get }
+
+  # --- audit finding: these two existed only in the dev server --------------
+  AdminListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-admin-list
+      CodeUri: ../backend/
+      Handler: lambdas.admin.handler.get_authoring
+      Environment:
+        Variables:
+          ADMIN_PASSPHRASE: !Ref AdminPassphrase
+          STATE_MACHINE_ARN: !Ref AuthoringStateMachine
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ChallengesTable }
+        - Statement:
+            - Effect: Allow
+              Action: [states:DescribeExecution, states:GetExecutionHistory, states:ListExecutions]
+              Resource: '*'
+      Events:
+        List:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: /admin/authoring, Method: get }
+
+  AdminRejectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: breakfix-admin-reject
+      CodeUri: ../backend/
+      Handler: lambdas.admin.handler.reject
+      Environment:
+        Variables: { ADMIN_PASSPHRASE: !Ref AdminPassphrase }
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ChallengesTable }
+      Events:
+        Reject:
+          Type: Api
+          Properties: { RestApiId: !Ref BreakFixApi, Path: '/admin/challenges/{challenge_id}/reject', Method: post }
 
   LeaderboardFunction:
     Type: AWS::Serverless::Function

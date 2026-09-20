@@ -280,3 +280,72 @@ def test_session_response_carries_the_brief(seeded):
     body = start_session()
     assert body["student_facing_summary"] == "Adds one."
     assert body["symptom_description"] == "Too large."
+
+
+# --- session/result recovery (audit fix: refresh must not lose an attempt) ---
+
+def test_a_session_can_be_refetched_by_id(seeded):
+    from lambdas.session_read import handler as session_read
+
+    started = start_session("Adii")
+    status, body = parse(session_read.get_session(
+        api_event(path_params={"session_id": started["session_id"]}), None))
+    assert status == 200
+    assert body["buggy_code"] == started["buggy_code"]
+    assert body["start_time"] == started["start_time"], "the clock must not restart on a refresh"
+    assert body["status"] == "in_progress"
+    assert body["tests_total"] == started["tests_total"]
+    assert body["student_facing_summary"] == started["student_facing_summary"]
+
+
+def test_refetching_a_session_never_leaks_the_hidden_tests(seeded):
+    from lambdas.session_read import handler as session_read
+
+    started = start_session()
+    _, body = parse(session_read.get_session(
+        api_event(path_params={"session_id": started["session_id"]}), None))
+    serialised = json.dumps(body)
+    for secret in ("expected_output", "ground_truth", "test_cases", "clean_code"):
+        assert secret not in serialised
+
+
+def test_refetching_an_unknown_session_is_a_404(seeded):
+    from lambdas.session_read import handler as session_read
+
+    status, _ = parse(session_read.get_session(
+        api_event(path_params={"session_id": "nope"}), None))
+    assert status == 404
+
+
+def test_a_result_can_be_refetched_and_matches_the_submit_response(seeded):
+    from lambdas.session_read import handler as session_read
+
+    started = start_session("Adii")
+    _, submitted = submit(started["session_id"], FIXED)
+
+    status, recovered = parse(session_read.get_result(
+        api_event(path_params={"session_id": started["session_id"]}), None))
+    assert status == 200
+    for field in ("correct", "tests_passed", "tests_total", "score",
+                  "process_feedback", "correctness_notes", "time_taken_seconds"):
+        assert recovered[field] == submitted[field], f"{field} differs after recovery"
+    assert recovered["test_summary"] == submitted["test_summary"]
+
+
+def test_refetching_a_result_before_submitting_is_a_404(seeded):
+    from lambdas.session_read import handler as session_read
+
+    started = start_session()
+    status, _ = parse(session_read.get_result(
+        api_event(path_params={"session_id": started["session_id"]}), None))
+    assert status == 404
+
+
+def test_a_completed_session_reports_complete_so_the_ui_can_redirect(seeded):
+    from lambdas.session_read import handler as session_read
+
+    started = start_session()
+    submit(started["session_id"], FIXED)
+    _, body = parse(session_read.get_session(
+        api_event(path_params={"session_id": started["session_id"]}), None))
+    assert body["status"] == "complete"

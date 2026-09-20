@@ -9,6 +9,13 @@ the identical standard:
 
 Nothing here publishes. The terminal state is `pending_review`; a human clicks
 publish, or the challenge stays invisible forever.
+
+Every test run goes through `test_runner.invoker`, so code fetched from GitHub
+and the mutations derived from it execute in the zero-permission Test Runner
+Lambda -- not in this function, which holds DynamoDB write and bedrock:InvokeModel.
+Running it here would put those credentials inside the blast radius of arbitrary
+fetched code, which is exactly the thing the Test Runner's empty policy set
+exists to prevent.
 """
 import ast
 import json
@@ -18,7 +25,7 @@ from typing import Any, Dict, List
 
 from authoring import github, mutation
 from common import storage
-from test_runner import runner
+from test_runner import invoker
 
 STEPS = [
     ("fetch", "Fetch the function from GitHub"),
@@ -106,7 +113,7 @@ def step_author_tests(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def step_verify_clean(ctx: Dict[str, Any]) -> Dict[str, Any]:
-    result = runner.run_tests(ctx["clean_code"], ctx["function_name"], ctx["test_cases"])
+    result = invoker.run(ctx["clean_code"], ctx["function_name"], ctx["test_cases"])
     ctx["clean_result"] = {"passed": result["tests_passed"], "total": result["tests_total"]}
     if result["tests_passed"] != result["tests_total"]:
         failures = [f"{t['name']}: {t['error']}" for t in result["per_test"] if not t["passed"]]
@@ -139,7 +146,7 @@ def step_inject_bug(ctx: Dict[str, Any]) -> Dict[str, Any]:
     # Deterministic fallback, clearly labelled -- never passed off as the agent.
     chosen = mutation.inject(
         ctx["clean_code"], ctx["function_name"], ctx["test_cases"],
-        lambda code, entry, cases: runner.run_tests(code, entry, cases),
+        lambda code, entry, cases: invoker.run(code, entry, cases),
     )
     if chosen is None:
         raise AuthoringError(
@@ -159,7 +166,7 @@ def step_inject_bug(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def step_verify_bug(ctx: Dict[str, Any]) -> Dict[str, Any]:
-    result = runner.run_tests(ctx["buggy_code"], ctx["function_name"], ctx["test_cases"])
+    result = invoker.run(ctx["buggy_code"], ctx["function_name"], ctx["test_cases"])
     failing = result["tests_total"] - result["tests_passed"]
     ctx["buggy_result"] = {"passed": result["tests_passed"], "total": result["tests_total"]}
     if failing == 0:
@@ -174,22 +181,22 @@ def step_validate_golden(ctx: Dict[str, Any]) -> Dict[str, Any]:
     fn, tests = ctx["function_name"], ctx["test_cases"]
     checks: List[Dict[str, Any]] = []
 
-    exact = runner.run_tests(ctx["clean_code"], fn, tests)
+    exact = invoker.run(ctx["clean_code"], fn, tests)
     checks.append({"case": "exact ground-truth fix", "expected": "all pass",
                    "ok": exact["tests_passed"] == exact["tests_total"],
                    "detail": f"{exact['tests_passed']}/{exact['tests_total']}"})
 
-    unchanged = runner.run_tests(ctx["buggy_code"], fn, tests)
+    unchanged = invoker.run(ctx["buggy_code"], fn, tests)
     checks.append({"case": "no change submitted", "expected": "same failures as the buggy version",
                    "ok": unchanged["tests_passed"] < unchanged["tests_total"],
                    "detail": f"{unchanged['tests_passed']}/{unchanged['tests_total']}"})
 
-    broken = runner.run_tests(f"def {fn}(*a, **k)\n    return None\n", fn, tests)
+    broken = invoker.run(f"def {fn}(*a, **k)\n    return None\n", fn, tests)
     checks.append({"case": "broken change (syntax error)", "expected": "reported as failing, not a crash",
                    "ok": broken["tests_passed"] == 0 and broken["runner_status"] == "load_error",
                    "detail": broken["runner_status"]})
 
-    looping = runner.run_tests(f"def {fn}(*a, **k):\n    while True:\n        pass\n", fn, tests)
+    looping = invoker.run(f"def {fn}(*a, **k):\n    while True:\n        pass\n", fn, tests)
     checks.append({"case": "broken change (infinite loop)", "expected": "terminated by the sandbox",
                    "ok": looping["tests_passed"] == 0,
                    "detail": looping["runner_status"]})

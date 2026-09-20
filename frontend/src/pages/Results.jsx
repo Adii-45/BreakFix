@@ -1,9 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import ScoreRing from '../components/ScoreRing.jsx';
 import { LeaderboardEmpty, LeaderboardList } from '../components/LeaderboardRows.jsx';
 import { useApp } from '../store.jsx';
-import { formatDuration } from '../api.js';
+import { api, formatDuration } from '../api.js';
 import { EASE, springTactile } from '../motion.js';
 import { lineDiff } from '../diff.js';
 
@@ -13,21 +14,65 @@ export default function Results() {
   const reduced = useReducedMotion();
   const { leaderboard, displayName } = useApp();
 
-  /* The entire screen renders from the POST /sessions/{id}/submit response that
-     was handed over in router state. Nothing below is synthesised. */
-  const result = location.state?.result ?? null;
-  const session = location.state?.session ?? null;
-  const submittedCode = location.state?.submittedCode ?? null;
+  /* The screen renders from the POST /sessions/{id}/submit response handed over
+     in router state. On a refresh or a shared URL that state is gone, so it is
+     re-fetched from GET /sessions/{id}/result — the same stored row, so the
+     recovered screen shows the same real numbers. Nothing is synthesised. */
+  const [result, setResult] = useState(location.state?.result ?? null);
+  const [session, setSession] = useState(location.state?.session ?? null);
+  const [recovering, setRecovering] = useState(!location.state?.result);
+  const [recoverError, setRecoverError] = useState('');
+  const submittedCode = location.state?.submittedCode ?? result?.submitted_code ?? null;
+
+  useEffect(() => {
+    if (result || !sessionId) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        // Both reads are independent: a result can exist even if the session
+        // row has aged out, so a failure to fetch the session is not fatal.
+        const recovered = await api.getResult(sessionId);
+        if (cancelled) return;
+        setResult(recovered);
+        try {
+          const s = await api.getSession(sessionId);
+          if (!cancelled) setSession(s);
+        } catch { /* header falls back to the challenge id */ }
+      } catch (err) {
+        if (!cancelled) setRecoverError(err.message);
+      } finally {
+        if (!cancelled) setRecovering(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [result, sessionId]);
 
   if (!result) {
+    if (recovering) {
+      return (
+        <div className="shell section-sm">
+          <div className="card" style={{ minHeight: 260 }}>
+            <div className="card-head"><span className="sk" style={{ width: 140, height: 12 }} /></div>
+            <div className="card-body stack gap-md">
+              <span className="t-body-sm text-muted">Loading your result…</span>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <span key={i} className="sk sk-line" style={{ width: `${80 - i * 8}%` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="shell section-sm">
         <div className="card">
           <div className="empty-state">
             <span className="icon" aria-hidden="true">⟲</span>
-            <span className="t-body" style={{ color: 'var(--text-dim)' }}>No result is loaded for this session.</span>
+            <span className="t-body" style={{ color: 'var(--text-dim)' }}>
+              {recoverError || 'No result is recorded for this session.'}
+            </span>
             <span className="t-body-sm text-muted">
-              Results are returned once, by the submit call. Take a challenge to generate a new one.
+              Take a challenge to generate one.
             </span>
             <Link to="/challenges" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>Back to challenges</Link>
           </div>

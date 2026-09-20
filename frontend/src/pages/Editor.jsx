@@ -20,10 +20,13 @@ export default function Editor() {
   const location = useLocation();
   const { refreshCatalogue, refreshLeaderboard } = useApp();
 
-  /* The session arrives via router state from POST /sessions. A hard refresh
-     loses it — the API has no GET /sessions/{id}, so we say so plainly rather
-     than fabricating a session. */
-  const session = location.state?.session ?? null;
+  /* The session normally arrives via router state from POST /sessions. On a
+     refresh or a pasted URL that state is gone, so we re-fetch it from
+     GET /sessions/{id} — the attempt survives, and the clock keeps counting
+     from the server's original start_time rather than restarting. */
+  const [session, setSession] = useState(location.state?.session ?? null);
+  const [recovering, setRecovering] = useState(!location.state?.session);
+  const [recoverError, setRecoverError] = useState('');
 
   const [code, setCode] = useState(session?.buggy_code ?? '');
   const [submitting, setSubmitting] = useState(false);
@@ -62,6 +65,29 @@ export default function Editor() {
   const extensions = useMemo(() => [python()], []);
 
   useEffect(() => {
+    if (session || !sessionId) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const recovered = await api.getSession(sessionId);
+        if (cancelled) return;
+        if (recovered.status === 'complete') {
+          // Already submitted: send them to the result rather than to a dead editor.
+          navigate(`/results/${sessionId}`, { replace: true });
+          return;
+        }
+        setSession(recovered);
+        setCode(recovered.buggy_code);
+      } catch (err) {
+        if (!cancelled) setRecoverError(err.message);
+      } finally {
+        if (!cancelled) setRecovering(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session, sessionId, navigate]);
+
+  useEffect(() => {
     const onKey = (e) => {
       if (!((e.metaKey || e.ctrlKey) && e.key === 'Enter')) return;
       // CodeMirror binds Mod-Enter to "insert blank line". Claim the key in the
@@ -76,14 +102,31 @@ export default function Editor() {
   }, [blocked, code, submit]);
 
   if (!session) {
+    if (recovering) {
+      return (
+        <div className="shell section-sm">
+          <div className="card" style={{ height: 400 }}>
+            <div className="card-head"><span className="sk" style={{ width: 150, height: 12 }} /></div>
+            <div className="card-body stack gap-md">
+              <span className="t-body-sm text-muted">Restoring your session…</span>
+              {Array.from({ length: 9 }).map((_, i) => (
+                <span key={i} className="sk sk-line" style={{ width: `${88 - i * 6}%` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="shell section-sm">
         <div className="card">
           <div className="empty-state">
             <span className="icon" aria-hidden="true">⟲</span>
-            <span className="t-body" style={{ color: 'var(--text-dim)' }}>This session is no longer loaded.</span>
+            <span className="t-body" style={{ color: 'var(--text-dim)' }}>
+              {recoverError || 'That session could not be found.'}
+            </span>
             <span className="t-body-sm text-muted">
-              Sessions live in the page state for the duration of an attempt. Start a fresh one to continue.
+              It may have been started against a challenge that no longer exists.
             </span>
             <Link to="/challenges" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>
               Back to challenges

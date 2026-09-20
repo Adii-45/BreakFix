@@ -136,7 +136,9 @@ def inject(
     clean_code: str,
     function_name: str,
     test_cases: List[Dict],
-    run_tests: Callable[[str, str, List[Dict]], Dict[str, Any]],
+    run_tests: Callable[[str, str, List[Dict]], Dict[str, Any]],  # supplied by the caller,
+    # so that mutations execute wherever the caller isolates untrusted code
+
 ) -> Optional[Dict[str, str]]:
     """Pick the first mutation that breaks some -- but not all -- hidden tests.
 
