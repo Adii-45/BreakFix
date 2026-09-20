@@ -7,6 +7,7 @@ import { useApp } from '../store.jsx';
 import { api, formatDuration } from '../api.js';
 import { EASE, springTactile } from '../motion.js';
 import { lineDiff } from '../diff.js';
+import { load } from '../persist.js';
 
 export default function Results() {
   const { sessionId } = useParams();
@@ -14,6 +15,7 @@ export default function Results() {
   const reduced = useReducedMotion();
   const { leaderboard, displayName } = useApp();
 
+<<<<<<< HEAD
   /* The screen renders from the POST /sessions/{id}/submit response handed over
      in router state. On a refresh or a shared URL that state is gone, so it is
      re-fetched from GET /sessions/{id}/result — the same stored row, so the
@@ -46,6 +48,14 @@ export default function Results() {
     })();
     return () => { cancelled = true; };
   }, [result, sessionId]);
+=======
+  /* The entire screen renders from the POST /sessions/{id}/submit response that
+     was handed over in router state. Nothing below is synthesised. */
+  const restored = location.state?.result ? null : load('result', sessionId);
+  const result = location.state?.result ?? restored?.result ?? null;
+  const session = location.state?.session ?? restored?.session ?? null;
+  const submittedCode = location.state?.submittedCode ?? restored?.submittedCode ?? null;
+>>>>>>> 9a7b295090d46444177ac03d9bd6ff44a6db5773
 
   if (!result) {
     if (recovering) {
